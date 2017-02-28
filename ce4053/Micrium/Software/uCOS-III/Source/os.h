@@ -173,7 +173,7 @@ extern "C" {
 ************************************************************************************************************************
 ************************************************************************************************************************
 */
-
+#define  TASK_RECURSION
 /*
 ========================================================================================================================
 *                                                      TASK STATUS
@@ -653,6 +653,12 @@ typedef  void                      (*OS_APP_HOOK_VOID)(void);
 typedef  void                      (*OS_APP_HOOK_TCB)(OS_TCB *p_tcb);
 #endif
 
+#ifdef  TASK_RECURSION
+typedef  unsigned  int               OS_TASK_PERIOD;
+typedef  unsigned  int               OS_TASK_RELEASE_TIME;
+typedef  unsigned  int               OS_TASK_DEADLINE;
+#endif
+
 /*$PAGE*/
 /*
 ************************************************************************************************************************
@@ -975,6 +981,12 @@ struct os_tcb {
     OS_TCB              *DbgPrevPtr;
     OS_TCB              *DbgNextPtr;
     CPU_CHAR            *DbgNamePtr;
+#endif
+    
+#ifdef  TASK_RECURSION
+   OS_TASK_PERIOD         TaskPeriod;
+   OS_TASK_RELEASE_TIME   TaskRelPeriod;
+   OS_TASK_DEADLINE             TaskDeadline;        
 #endif
 };
 
@@ -1584,7 +1596,9 @@ void         OSRecTaskCreate            (OS_TCB                *p_tcb,
                                          OS_TICK                time_quanta,
                                          void                  *p_ext,
                                          OS_OPT                 opt,
-                                         OS_ERR                *p_err);
+                                         OS_ERR                *p_err,
+                                         OS_TASK_PERIOD   TaskPeriod,
+                                         OS_TASK_DEADLINE       TaskDeadline);
 
 void          OSRecTaskDel               (OS_TCB               *p_tcb,
                                          OS_ERR                *p_err);
@@ -1695,6 +1709,8 @@ void          OS_TaskDbgListRemove      (OS_TCB                *p_tcb);
 void          OS_TaskInit               (OS_ERR                *p_err);
 
 void          OS_TaskInitTCB            (OS_TCB                *p_tcb);
+
+void          OS_TaskRecDelTCB          (OS_TCB                *p_tcb);
 
 void          OS_TaskQPost              (OS_TCB                *p_tcb,
                                          void                  *p_void,
