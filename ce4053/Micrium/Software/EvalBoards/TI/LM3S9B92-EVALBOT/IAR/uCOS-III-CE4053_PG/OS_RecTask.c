@@ -40,7 +40,7 @@
 *********************************************************************************************************
 */
 static CPU_INT32U  counter;
-
+OS_TCB        *g_tcb; //Remove
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -65,17 +65,54 @@ static CPU_INT32U  counter;
 
 void  OSTaskHandler (void)
 {
-    
+  OS_TCB  *p_tcb;
+  p_tcb = g_tcb;
+  CPU_STK *p_sp;
+  CPU_STK_SIZE   i;
+  
     /* 
-    * --> popout from the list ( period == counter - last_released_time)         *        
-    * --> Push into Ready list                                                          *        
+    * --> popout from the list ( counter == TaskRelPeriod)         *        
+    * --> Push into Ready list and update release time in tcb                    *        
     */
+  if(counter == 3) {
+                                                            /* --------------- CLEAR THE TASK'S STACK --------------- */
+    if ((p_tcb->Opt & OS_OPT_TASK_STK_CHK) != (OS_OPT)0) {         /* See if stack checking has been enabled                 */
+        if ((p_tcb->Opt & OS_OPT_TASK_STK_CLR) != (OS_OPT)0) {     /* See if stack needs to be cleared                       */
+            p_sp = p_tcb->StkBasePtr;
+            for (i = 0u; i < p_tcb->StkSize; i++) {               /* Stack grows from HIGH to LOW memory                    */
+                *p_sp = (CPU_STK)0;                         /* Clear from bottom of stack and up!                     */
+                p_sp++;
+            }
+        }
+    }
     
+    p_sp = OSTaskStkInit(p_tcb->TaskEntryAddr,
+                         p_tcb->TaskEntryArg,
+                         p_tcb->StkBasePtr,
+                         p_tcb->StkLimitPtr,
+                         p_tcb->StkSize,
+                         p_tcb->Opt);
+    
+    p_tcb->StkPtr    = p_sp;                                /* Save the new top-of-stack pointer      */ 
+    p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_RDY;         /* Indicate that the task in READY STATE  */
+    
+    CPU_SR_ALLOC();
+                                                            /* --------------- ADD TASK TO READY LIST --------------- */
+    OS_CRITICAL_ENTER();
+    OS_PrioInsert(p_tcb->Prio);
+    OS_RdyListInsertTail(p_tcb);
+    OSTaskQty++;                                            /* Increment the #tasks counter                           */
+    if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
+        OS_CRITICAL_EXIT();
+        return;
+    }    
+    OS_CRITICAL_EXIT_NO_SCHED();
+    OSSched();
+  }
     
     /*Update the local counter and boundary check*/
     counter = counter + 1; 
     
-    /*Update the list*/
 }
 
 /*
@@ -172,7 +209,9 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
                     OS_TICK        time_quanta,
                     void          *p_ext,
                     OS_OPT         opt,
-                    OS_ERR        *p_err)
+                    OS_ERR        *p_err,
+                    OS_TASK_PERIOD   p_task_period,
+                    OS_TASK_DEADLINE       p_task_deadline)
 {
     CPU_STK_SIZE   i;
 #if OS_CFG_TASK_REG_TBL_SIZE > 0u
@@ -287,6 +326,10 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     p_tcb->StkLimitPtr   = p_stk_limit;                     /* Save the stack limit pointer                           */
 
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
+    p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */    
+    p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
+    p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline */    
+    
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
     if (time_quanta == (OS_TICK)0) {
         p_tcb->TimeQuantaCtr = OSSchedRoundRobinDfltTimeQuanta;
@@ -311,12 +354,14 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 #endif
 
     OSTaskCreateHook(p_tcb);                                /* Call user defined hook                                 */
-
+                                                            /* --------------- ADD TASK TO TASK RECURSION LIST -------*/  
+    
+    
                                                             /* --------------- ADD TASK TO READY LIST --------------- */
     OS_CRITICAL_ENTER();
     OS_PrioInsert(p_tcb->Prio);
     OS_RdyListInsertTail(p_tcb);
-
+    g_tcb = p_tcb; //Remove
 #if OS_CFG_DBG_EN > 0u
     OS_TaskDbgListAdd(p_tcb);
 #endif
@@ -447,8 +492,7 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
 #endif
     OSTaskQty--;                                            /* One less task being managed                            */
 
-    OS_TaskInitTCB(p_tcb);                                  /* Initialize the TCB to default values                   */
-    p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_DEL;         /* Indicate that the task was deleted                     */
+    OS_TaskRecDelTCB(p_tcb);                                /* Initialize the TCB to default values                   */
 
     OS_CRITICAL_EXIT_NO_SCHED();
     OSSched();                                              /* Find new highest priority task                         */
@@ -456,3 +500,135 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
     *p_err = OS_ERR_NONE;
 }
 
+
+/*$PAGE*/
+/*
+************************************************************************************************************************
+*                                               DELETE REQUIRED TCB FIELDS FOR TASK RECURSION
+*
+* Description: This function is called to initialize a TCB to default values
+*
+* Arguments  : p_tcb    is a pointer to the TCB to initialize
+*
+* Returns    : none
+*
+* Note(s)    : This function is INTERNAL to uC/OS-III and your application should not call it.
+************************************************************************************************************************
+*/
+
+void  OS_TaskRecDelTCB (OS_TCB *p_tcb)
+{
+#if OS_CFG_TASK_REG_TBL_SIZE > 0u
+    OS_REG_ID   id;
+#endif
+#if OS_CFG_TASK_PROFILE_EN > 0u
+    CPU_TS      ts;
+#endif
+
+
+    //p_tcb->StkPtr             = (CPU_STK       *)0;
+    //p_tcb->StkLimitPtr        = (CPU_STK       *)0;
+
+    //p_tcb->ExtPtr             = (void          *)0;
+
+    p_tcb->NextPtr            = (OS_TCB        *)0;
+    p_tcb->PrevPtr            = (OS_TCB        *)0;
+
+    p_tcb->TickNextPtr        = (OS_TCB        *)0;
+    p_tcb->TickPrevPtr        = (OS_TCB        *)0;
+    p_tcb->TickSpokePtr       = (OS_TICK_SPOKE *)0;
+
+    //p_tcb->NamePtr            = (CPU_CHAR      *)((void *)"?Task");
+
+    //p_tcb->StkBasePtr         = (CPU_STK       *)0;
+
+    //p_tcb->TaskEntryAddr      = (OS_TASK_PTR    )0;
+    //p_tcb->TaskEntryArg       = (void          *)0;
+
+#if (OS_CFG_PEND_MULTI_EN > 0u)
+    p_tcb->PendDataTblPtr     = (OS_PEND_DATA  *)0;
+    p_tcb->PendDataTblEntries = (OS_OBJ_QTY     )0u;
+#endif
+
+    p_tcb->TS                 = (CPU_TS         )0u;
+
+#if (OS_MSG_EN > 0u)
+    //p_tcb->MsgPtr             = (void          *)0;
+    //p_tcb->MsgSize            = (OS_MSG_SIZE    )0u;
+#endif
+
+#if OS_CFG_TASK_Q_EN > 0u
+    OS_MsgQInit(&p_tcb->MsgQ,
+                (OS_MSG_QTY)0u);
+#if OS_CFG_TASK_PROFILE_EN > 0u
+    p_tcb->MsgQPendTime       = (CPU_TS         )0u;
+    p_tcb->MsgQPendTimeMax    = (CPU_TS         )0u;
+#endif
+#endif
+
+#if OS_CFG_FLAG_EN > 0u
+    p_tcb->FlagsPend          = (OS_FLAGS       )0u;
+    p_tcb->FlagsOpt           = (OS_OPT         )0u;
+    p_tcb->FlagsRdy           = (OS_FLAGS       )0u;
+#endif
+
+#if OS_CFG_TASK_REG_TBL_SIZE > 0u
+    for (id = 0u; id < OS_CFG_TASK_REG_TBL_SIZE; id++) {
+        p_tcb->RegTbl[id] = (OS_REG)0u;
+    }
+#endif
+
+    p_tcb->SemCtr             = (OS_SEM_CTR     )0u;
+#if OS_CFG_TASK_PROFILE_EN > 0u
+    p_tcb->SemPendTime        = (CPU_TS         )0u;
+    p_tcb->SemPendTimeMax     = (CPU_TS         )0u;
+#endif
+
+    //p_tcb->StkSize            = (CPU_STK_SIZE   )0u;
+
+
+#if OS_CFG_TASK_SUSPEND_EN > 0u
+    p_tcb->SuspendCtr         = (OS_NESTING_CTR )0u;
+#endif
+
+#if OS_CFG_STAT_TASK_STK_CHK_EN > 0u
+    p_tcb->StkFree            = (CPU_STK_SIZE   )0u;
+    p_tcb->StkUsed            = (CPU_STK_SIZE   )0u;
+#endif
+
+    // p_tcb->Opt                = (OS_OPT         )0u;
+
+    p_tcb->TickCtrPrev        = (OS_TICK        )OS_TICK_TH_INIT;
+    p_tcb->TickCtrMatch       = (OS_TICK        )0u;
+    p_tcb->TickRemain         = (OS_TICK        )0u;
+
+   // p_tcb->TimeQuanta         = (OS_TICK        )0u;
+   // p_tcb->TimeQuantaCtr      = (OS_TICK        )0u;
+
+#if OS_CFG_TASK_PROFILE_EN > 0u
+    p_tcb->CPUUsage           = (OS_CPU_USAGE   )0u;
+    p_tcb->CtxSwCtr           = (OS_CTX_SW_CTR  )0u;
+    p_tcb->CyclesDelta        = (CPU_TS         )0u;
+    ts                        = OS_TS_GET();                /* Read the current timestamp and save                    */
+    p_tcb->CyclesStart        = ts;
+    p_tcb->CyclesTotal        = (OS_CYCLES      )0u;
+#endif
+#ifdef CPU_CFG_INT_DIS_MEAS_EN
+    p_tcb->IntDisTimeMax      = (CPU_TS         )0u;
+#endif
+#if OS_CFG_SCHED_LOCK_TIME_MEAS_EN > 0u
+    p_tcb->SchedLockTimeMax   = (CPU_TS         )0u;
+#endif
+
+    p_tcb->PendOn             = (OS_STATE       )OS_TASK_PEND_ON_NOTHING;
+    p_tcb->PendStatus         = (OS_STATUS      )OS_STATUS_PEND_OK;
+    p_tcb->TaskState          = (OS_STATE       )OS_TASK_STATE_DEL;
+
+    //p_tcb->Prio               = (OS_PRIO        )OS_PRIO_INIT;
+
+#if OS_CFG_DBG_EN > 0u
+    p_tcb->DbgPrevPtr         = (OS_TCB        *)0;
+    p_tcb->DbgNextPtr         = (OS_TCB        *)0;
+    p_tcb->DbgNamePtr         = (CPU_CHAR      *)((void *)" ");
+#endif
+}
