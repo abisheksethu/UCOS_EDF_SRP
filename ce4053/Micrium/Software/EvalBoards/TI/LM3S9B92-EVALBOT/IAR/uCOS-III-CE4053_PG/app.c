@@ -14,11 +14,11 @@
 /*
 *********************************************************************************************************
 *
-*                                            EXAMPLE CODE
+*                                            APPLICATION CODE
 *
 * Filename      : app.c
 * Version       : V1.00
-* Programmer(s) : FUZZI
+* Programmer(s) : Team Tesla
 *
 *********************************************************************************************************
 */
@@ -44,33 +44,33 @@
 
 #define ONESECONDTICK             7000000
 
-#define TASK1PERIOD                   10
-#define TASK2PERIOD                   20
-
-
 #define WORKLOAD1                     3
 #define WORKLOAD2                     2
 
-
 #define TIMERDIV                      (BSP_CPUClkFreq() / (CPU_INT32U)OSCfg_TickRate_Hz)
-
-
-
 
 /*
 *********************************************************************************************************
-*                                            LOCAL VARIABLES
+*                                            GLOBAL VARIABLES
 *********************************************************************************************************
 */
-
 static  OS_TCB       AppTaskStartTCB;
 static  CPU_STK      AppTaskStartStk[APP_TASK_START_STK_SIZE];
 
 static  OS_TCB       AppTaskOneTCB;
-static  CPU_STK      AppTaskOneStk[APP_TASK_ONE_STK_SIZE];
+static  CPU_STK      AppTaskOneStk[APP_TASK_ONE_STK_SIZE];      
 
 static  OS_TCB       AppTaskTwoTCB;
 static  CPU_STK      AppTaskTwoStk[APP_TASK_TWO_STK_SIZE];
+
+static  OS_TCB       AppTaskThreeTCB;
+static  CPU_STK      AppTaskThreeStk[APP_TASK_ONE_STK_SIZE];
+
+static  OS_TCB       AppTaskFourTCB;
+static  CPU_STK      AppTaskFourStk[APP_TASK_TWO_STK_SIZE];
+
+static  OS_TCB       AppTaskFiveTCB;
+static  CPU_STK      AppTaskFiveStk[APP_TASK_ONE_STK_SIZE];
 
 CPU_INT32U      iCnt = 0;
 CPU_INT08U      Left_tgt;
@@ -79,7 +79,6 @@ CPU_INT32U      iToken  = 0;
 CPU_INT32U      iCounter= 1;
 CPU_INT32U      iMove   = 10;
 CPU_INT32U      measure=0;
-
 
 /*
 *********************************************************************************************************
@@ -94,7 +93,9 @@ static  void        AppRobotMotorDriveSensorEnable    ();
 static  void        AppTaskStart                 (void  *p_arg);
 static  void        AppTaskOne                   (void  *p_arg);
 static  void        AppTaskTwo                   (void  *p_arg);
-
+static  void        AppTaskThree                 (void  *p_arg);
+static  void        AppTaskFour                  (void  *p_arg);
+static  void        AppTaskFive                  (void  *p_arg);
 
 /*
 *********************************************************************************************************
@@ -133,27 +134,26 @@ int  main (void)
     OSStart(&err);                                              /* Start multitasking (i.e. give control to uC/OS-III). */
 }
 
-
 /*
 *********************************************************************************************************
 *                                          STARTUP TASK
 *
-* Description : This is an example of a startup task.  As mentioned in the book's text, you MUST
-*               initialize the ticker only once multitasking has started.
+* Description : This is a startup task. BSP init creates a hardware Timer0A with interrupt for every one second
+*               Initialize the ticker only once when multitasking has started.
 *
-* Arguments   : p_arg   is the argument passed to 'AppTaskStart()' by 'OSTaskCreate()'.
+* Arguments   : p_arg is the argument passed to 'AppTaskStart()' by 'OSTaskCreate()'.
 *
 * Returns     : none
 *
-* Notes       : 1) The first line of code is used to prevent a compiler warning because 'p_arg' is not
-*                  used.  The compiler should not generate any code for this statement.
+* Notes       : 
+* 
 *********************************************************************************************************
 */
 
 static  void  AppTaskStart (void  *p_arg)
 {
     CPU_INT32U  clk_freq;
-    CPU_INT32U  cnts;
+    CPU_INT32U  cnts,i;
     OS_ERR      err;
     (void)&p_arg;
     BSP_Init();                                                 /* Initialize BSP functions                             */
@@ -166,48 +166,78 @@ static  void  AppTaskStart (void  *p_arg)
     /* Enable Wheel ISR Interrupt */
     AppRobotMotorDriveSensorEnable();
     
-    /* Initialise the 2 Main Tasks to  Deleted State */
-
-    OSTaskCreate((OS_TCB     *)&AppTaskOneTCB, (CPU_CHAR   *)"App Task One", (OS_TASK_PTR ) AppTaskOne, (void       *) 0, (OS_PRIO     ) APP_TASK_ONE_PRIO, (CPU_STK    *)&AppTaskOneStk[0], (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *)(CPU_INT32U) 1, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
-    OSTaskCreate((OS_TCB     *)&AppTaskTwoTCB, (CPU_CHAR   *)"App Task Two", (OS_TASK_PTR ) AppTaskTwo, (void       *) 0, (OS_PRIO     ) APP_TASK_TWO_PRIO, (CPU_STK    *)&AppTaskTwoStk[0], (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
-
+    /*Release the first task set - OSRecTask() - Insert all recursive tasks into list and delete task accordingly*/ 
+    OSRecTaskCreate((OS_TCB     *)&AppTaskOneTCB, (CPU_CHAR   *)"leftLEDBlink", (OS_TASK_PTR ) AppTaskOne, (void       *) 0, (OS_PRIO     ) APP_TASK_ONE_PRIO, (CPU_STK    *)&AppTaskOneStk[0], (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *)(CPU_INT32U) 1, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskTwoTCB, (CPU_CHAR   *)"rightLEDBlink", (OS_TASK_PTR ) AppTaskTwo, (void       *) 0, (OS_PRIO     ) APP_TASK_TWO_PRIO, (CPU_STK    *)&AppTaskTwoStk[0], (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskThreeTCB, (CPU_CHAR   *)"LEDBlink", (OS_TASK_PTR ) AppTaskThree, (void       *) 0, (OS_PRIO     ) APP_TASK_THREE_PRIO, (CPU_STK    *)&AppTaskThreeStk[0], (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskFourTCB, (CPU_CHAR   *)"moveForward", (OS_TASK_PTR ) AppTaskFour, (void       *) 0, (OS_PRIO     ) APP_TASK_FOUR_PRIO, (CPU_STK    *)&AppTaskFourStk[0], (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskFiveTCB, (CPU_CHAR   *)"moveBackward", (OS_TASK_PTR ) AppTaskFive, (void       *) 0, (OS_PRIO     ) APP_TASK_FIVE_PRIO, (CPU_STK    *)&AppTaskFiveStk[0], (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err);
     
-    /* Delete this task */
+    /* Delete AppTaskStart */
     OSTaskDel((OS_TCB *)0, &err);
-    
 }
-
-static  void  AppTaskOne (void  *p_arg)
+/*
+*********************************************************************************************************
+*                                          USER DEFINED TASK Definition
+*
+* Description : These are  user defined tasks 
+*
+*
+* Arguments   : p_arg is the argument passed to 'AppTaskStart()' by 'OSTaskCreate()'.
+*
+* Returns     : none
+*
+* Notes       : 
+* 
+*********************************************************************************************************
+*/
+void  AppTaskOne (void  *p_arg)
 { 
     OS_ERR      err;
-    CPU_INT32U  k, i, j;
-    
-    if(iMove > 0)
+    CPU_INT32U  i,k,j=0;
+   
+    for(i=0; i <(ONESECONDTICK); i++)
     {
-      if(iMove%2==0)
-      {  
-      RoboTurn(FRONT, 16, 50);
-      iMove--;
-      }
-      else{
-        RoboTurn(BACK, 16, 50);
-        iMove++;
-      }
+      j = ((i * 2) + j);
     }
     
-    for(k=0; k<WORKLOAD1; k++)
+    BSP_LED_Off(2u);
+    for(k=0; k<1; k++)
     {
-      for(i=0; i <ONESECONDTICK; i++){
-        j=2*i;
-      }
-     }
+      BSP_LED_Toggle(2u);
+      for(i=0; i <ONESECONDTICK/2; i++)
+         j = ((i * 2)+j);
+    }
     
-    OSTaskDel((OS_TCB *)0, &err);   
+   BSP_LED_Off(2u);
+   
+   OSTaskDel((OS_TCB *)0, &err); 
 
 }
+void  AppTaskTwo (void  *p_arg)
+{   
+    OS_ERR      err;
+    CPU_INT32U  i,k,j=0;
+   
+    for(i=0; i <(ONESECONDTICK); i++)
+    {
+      j = ((i * 2) + j);
+    }
+    
+    BSP_LED_Off(1u);
+    for(k=0; k<1; k++)
+    {
+      BSP_LED_Toggle(1u);
+      for(i=0; i <ONESECONDTICK/2; i++)
+         j = ((i * 2)+j);
+    }
+    
+   BSP_LED_Off(1u);
+   
+   OSTaskDel((OS_TCB *)0, &err);
+}
 
-
-static  void  AppTaskTwo (void  *p_arg)
+void  AppTaskThree (void  *p_arg)
 {   
     OS_ERR      err;
     CPU_INT32U  i,k,j=0;
@@ -218,16 +248,50 @@ static  void  AppTaskTwo (void  *p_arg)
     }
     
     BSP_LED_Off(0u);
-    for(k=0; k<5; k++)
+    for(k=0; k<1; k++)
     {
       BSP_LED_Toggle(0u);
       for(i=0; i <ONESECONDTICK/2; i++)
          j = ((i * 2)+j);
     }
     
-    BSP_LED_Off(0u);
+   BSP_LED_Off(0u);
+   
    OSTaskDel((OS_TCB *)0, &err);
+}
 
+void  AppTaskFour (void  *p_arg)
+{ 
+    OS_ERR      err;
+    CPU_INT32U  k, i, j;
+ 
+    RoboTurn(FRONT, 16, 50);
+    
+    for(k=0; k<WORKLOAD1; k++)
+    {
+      for(i=0; i <ONESECONDTICK; i++){
+        j=2*i;
+      }
+     }
+    
+    OSTaskDel((OS_TCB *)0, &err);   
+}
+
+void  AppTaskFive (void  *p_arg)
+{ 
+    OS_ERR      err;
+    CPU_INT32U  k, i, j;
+  
+    RoboTurn(BACK, 16, 50);
+    
+    for(k=0; k<WORKLOAD1; k++)
+    {
+      for(i=0; i <ONESECONDTICK; i++){
+        j=2*i;
+      }
+     }
+  
+    OSTaskDel((OS_TCB *)0, &err);   
 }
 
 static  void  AppRobotMotorDriveSensorEnable ()

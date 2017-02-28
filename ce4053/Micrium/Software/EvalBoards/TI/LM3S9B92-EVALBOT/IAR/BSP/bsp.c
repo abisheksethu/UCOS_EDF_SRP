@@ -114,9 +114,19 @@ void  BSP_Init (void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
-
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    
     BSP_IntInit();
-
+    
+    /*Hardware Timer*/
+    TimerDisable(TIMER0_BASE, TIMER_A);
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
+    TimerLoadSet(TIMER0_BASE, TIMER_A, (SysCtlClockGet()));
+    IntMasterEnable();
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    IntEnable(INT_TIMER0A);
+    TimerEnable(TIMER0_BASE, TIMER_A);
+         
     BSP_DisplayInit();
     BSP_LEDsInit();
     BSP_PushButtonsInit();

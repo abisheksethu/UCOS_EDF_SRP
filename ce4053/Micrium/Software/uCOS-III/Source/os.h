@@ -1570,6 +1570,25 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
                                          OS_ERR                *p_err);
 #endif
 
+void         OSTaskHandler              (void);
+
+void         OSRecTaskCreate            (OS_TCB                *p_tcb,
+                                         CPU_CHAR              *p_name,
+                                         OS_TASK_PTR            p_task,
+                                         void                  *p_arg,
+                                         OS_PRIO                prio,
+                                         CPU_STK               *p_stk_base,
+                                         CPU_STK_SIZE           stk_limit,
+                                         CPU_STK_SIZE           stk_size,
+                                         OS_MSG_QTY             q_size,
+                                         OS_TICK                time_quanta,
+                                         void                  *p_ext,
+                                         OS_OPT                 opt,
+                                         OS_ERR                *p_err);
+
+void          OSRecTaskDel               (OS_TCB               *p_tcb,
+                                         OS_ERR                *p_err);
+
 void          OSTaskCreate              (OS_TCB                *p_tcb,
                                          CPU_CHAR              *p_name,
                                          OS_TASK_PTR            p_task,

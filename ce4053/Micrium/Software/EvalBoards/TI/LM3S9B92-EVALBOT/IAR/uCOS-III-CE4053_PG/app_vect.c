@@ -60,7 +60,6 @@ typedef  union {
 *********************************************************************************************************
 */
 
-
 /*
 *********************************************************************************************************
 *                                      LOCAL FUNCTION PROTOTYPES
@@ -82,7 +81,10 @@ static  void  App_MemFault_ISR   (void);
 
 static  void  App_Spurious_ISR   (void);
 
+static  void  App_TaskLoader     (void);
+
 extern  void  __iar_program_start(void);
+
 
 
 /*
@@ -139,7 +141,7 @@ __root  const  APP_INTVECT_ELEM  __vector_table[] @ ".intvec" = {
     BSP_IntHandlerADC2,
     BSP_IntHandlerADC3,
     BSP_IntHandlerWATCHDOG,
-    BSP_IntHandlerTIMER0A,
+    App_TaskLoader,
     BSP_IntHandlerTIMER0B,
     BSP_IntHandlerTIMER1A,
     BSP_IntHandlerTIMER1B,
@@ -178,6 +180,12 @@ __root  const  APP_INTVECT_ELEM  __vector_table[] @ ".intvec" = {
     BSP_IntHandlerGPIOJ
 };
 
+static void App_TaskLoader  (void)
+{
+    /*Implementation for time lapsed*/
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);    
+    OSTaskHandler();
+}
 
 /*
 *********************************************************************************************************
