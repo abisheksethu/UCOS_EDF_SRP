@@ -986,7 +986,8 @@ struct os_tcb {
 #ifdef  TASK_RECURSION
    OS_TASK_PERIOD         TaskPeriod;
    OS_TASK_RELEASE_TIME   TaskRelPeriod;
-   OS_TASK_DEADLINE             TaskDeadline;        
+   OS_TASK_DEADLINE       TaskDeadline;
+   OS_TASK_DEADLINE       TaskAbsDeadline;
 #endif
 };
 
@@ -1584,6 +1585,7 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
 
 void         OSTaskHandler              (void);
 
+void         OSTaskInsertTCB            (OS_TCB *p_tcb);
 void         OSRecTaskCreate            (OS_TCB                *p_tcb,
                                          CPU_CHAR              *p_name,
                                          OS_TASK_PTR            p_task,
@@ -1841,6 +1843,7 @@ void          OSSchedRoundRobinYield    (OS_ERR                *p_err);
 #endif
 
 void          OSSched                   (void);
+void          OSEDFSched                (OS_ERR                *p_err);
 
 void          OSSchedLock               (OS_ERR                *p_err);
 void          OSSchedUnlock             (OS_ERR                *p_err);
@@ -2348,6 +2351,26 @@ void          OS_TickListUpdate         (void);
 #error  "cpu_core.h, CPU_CORE_VERSION SHOULD be >= V1.25"
 #endif
 
+/*
+************************************************************************************************************************
+*                                                 uC/OS-III DATA STRUCTUREs
+************************************************************************************************************************
+*/
+           
+#define NUM_OF_TASKS 5
+             
+typedef struct tree_node Tree;
+struct tree_node {
+    Tree * left, * right;
+    OS_TASK_RELEASE_TIME release_time;
+    OS_TCB* p_tcb[NUM_OF_TASKS];
+    CPU_INT32U entries;
+};
+  
+Tree * delete_node(OS_TASK_RELEASE_TIME, Tree * );
+Tree * insert(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
+Tree * find_min(Tree *t);
+void Splay_Tree_Init(void);
 
 /*
 ************************************************************************************************************************

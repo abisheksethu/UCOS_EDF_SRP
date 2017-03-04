@@ -121,7 +121,7 @@ void  BSP_Init (void)
     /*Hardware Timer*/
     TimerDisable(TIMER0_BASE, TIMER_A);
     TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
-    TimerLoadSet(TIMER0_BASE, TIMER_A, (SysCtlClockGet()*8));
+    TimerLoadSet(TIMER0_BASE, TIMER_A, (SysCtlClockGet()));
     IntMasterEnable();
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER0A);

@@ -79,11 +79,11 @@
 *********************************************************************************************************
 */
 
-#define TASK1PERIOD                    5
-#define TASK2PERIOD                   20
-#define TASK3PERIOD                   15
-#define TASK4PERIOD                   35
-#define TASK5PERIOD                   60
+#define TASK1PERIOD                    5u
+#define TASK2PERIOD                   20u
+#define TASK3PERIOD                   15u
+#define TASK4PERIOD                   35u
+#define TASK5PERIOD                   60u
 
 /*
 *********************************************************************************************************

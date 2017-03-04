@@ -60,7 +60,7 @@
 
 
                                              /* -------------------------- MEMORY MANAGEMENT ------------------------ */
-#define OS_CFG_MEM_EN                   0u   /* Enable (1) or Disable (0) code generation for MEMORY MANAGER          */
+#define OS_CFG_MEM_EN                   1u   /* Enable (1) or Disable (0) code generation for MEMORY MANAGER          */
 
 
                                              /* --------------------- MUTUAL EXCLUSION SEMAPHORES ------------------- */
