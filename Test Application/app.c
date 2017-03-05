@@ -209,6 +209,7 @@ static  void  AppTaskTwo (void  *p_arg)
       for(i=0; i <ONESECONDTICK; i++)
          j = ((i * 2)+j);
     }
+	
     BSP_LED_Off(2u);
   
    OSTaskDel((OS_TCB *)0, &err);
