@@ -185,8 +185,8 @@ static void App_TaskLoader  (void)
 {
     /*Implementation for time lapsed*/
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);    
-    StartTime = OS_TS_GET ();
-    StartTime2 = OS_TS_GET (); 
+    StartTime = OS_TS_GET();
+    StartTime2 = OS_TS_GET(); 
     OSTaskHandler();
 }
 

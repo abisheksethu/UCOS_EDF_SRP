@@ -194,41 +194,39 @@ void  OSEDFSched (void)
   OS_PRIO user_priority_level = 5;
   
   /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
-  min = GetMinEDFTree(root2);
+  min = GetMinEDFTree(SchedulerTree);
   entry = min->entries;
   if (min != NULL) 
   {
-    CPU_SR_ALLOC();
-    OS_CRITICAL_ENTER();
-    
-    //CPU_INT_DIS();
     for(int j=0; (j < entry && j <= NUM_OF_TASKS); j++)
     { 
+      CPU_SR_ALLOC();
+      OS_CRITICAL_ENTER();
       user_priority_level++;
       p_tcb = min->p_tcb[j];
       p_tcb->Prio = user_priority_level;
       if (p_tcb == OSTCBCurPtr) 
-      { 
+      {        
         OS_CRITICAL_EXIT();
-        CPU_INT_EN();
         return;
       }
       else 
-      {  
-        if((OS_PrioGetHighest() == 6) && (p_tcb->Prio == 6))
+      {
+        if(OS_PrioGetHighest()== p_tcb->Prio)
+        {
           OS_RdyListRemove(OSTCBCurPtr);
+          OS_PrioRemove (OSTCBCurPtr->Prio);
+        }
         OS_PrioInsert(p_tcb->Prio); 
         OS_RdyListInsertTail(p_tcb);
+        OSTaskQty++;                                            /* Increment the #tasks counter                           */
         if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
           OS_CRITICAL_EXIT();
-          CPU_INT_EN();
           return;
-        }    
-        
+        }
+        OS_CRITICAL_EXIT_NO_SCHED();
       }     
     }    
-    OS_CRITICAL_EXIT_NO_SCHED();
-    //CPU_INT_EN();
   }
   else{
     return;
@@ -477,7 +475,7 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     OSTaskCreateHook(p_tcb);                                /* Call user defined hook                                 */
   
     RecursionTree = InsertRecTree(p_tcb->TaskRelPeriod, RecursionTree, p_tcb);         /* --------------- ADD TCB TO RECURSION LIST --------------- */
-    SchedulerTree = InsertEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree, p_tcb); /* --------------- ADD TCB TO SCHEDULNG LIST --------------- */  
+    SchedulerTree = InsertEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree, p_tcb);      /* --------------- ADD TCB TO SCHEDULNG LIST --------------- */  
      
 #if TASK_RECURSION_DEBUG                                                                 
     CPU_SR_ALLOC();                                           /* --------------- ADD TASK TO READY LIST --------------- */
@@ -893,7 +891,7 @@ void  OS_TaskRecDelTCB (OS_TCB *p_tcb)
 */
 CPU_INT32U CounterOverflow (CPU_INT32U counter) {
 	CPU_INT32U window = 0;
-	window = (counter & BORDER_BIT) > 7;
+	window = (counter & BORDER_BIT) >> 31;
 	if(window == 1) {
 		counter = counter - BORDER_VALUE;
 	}
