@@ -23,7 +23,7 @@
 *                                            GLOBAL VARIABLES
 *********************************************************************************************************
 */
-Tree * root;
+Tree * RecursionTree;
 CPU_INT32U *MemoryPartition [10][10];
 OS_MEM MemoryCB;
 /*
@@ -41,12 +41,12 @@ OS_MEM MemoryCB;
 *********************************************************************************************************
 */
 
-void Splay_Tree_Init(void)
+void SplayTreeInit(void)
 {
   OS_ERR      err;
   OS_MEM_QTY node_size = sizeof(CPU_INT32U);
   OSMemCreate((OS_MEM*)&MemoryCB, (CPU_CHAR*)"Splay_tree_node", &MemoryPartition[0][0], (OS_MEM_QTY)(10), (OS_MEM_SIZE)(10*node_size), &err);
-  root = NULL;
+  RecursionTree = NULL;
 }
 /*
 *********************************************************************************************************
@@ -107,7 +107,7 @@ Tree * splay (OS_TASK_RELEASE_TIME i, Tree * t) {
 }
 /*
 *********************************************************************************************************
-*                                          INSERT IN TASK RECURSION LIST
+*                                          INSERT IN TASK RECURSION TREE
 *
 * Description : insert a new node to the tree, it supports insertion with same priority 
 *
@@ -119,14 +119,14 @@ Tree * splay (OS_TASK_RELEASE_TIME i, Tree * t) {
 *               
 *********************************************************************************************************
 */
-Tree * insert(OS_TASK_RELEASE_TIME i, Tree * t, OS_TCB* block) {
+Tree * InsertRecTree(OS_TASK_RELEASE_TIME i, Tree * t, OS_TCB* block) {
 /* Insert i into the tree t, unless it's already there.    */
 /* Return a pointer to the resulting tree.                 */
     Tree * new1;
     OS_ERR  err;
     new1 = (Tree *) OSMemGet((OS_MEM*)&MemoryCB, (OS_ERR*)&err);
     if (new1 == NULL) {
-      exit(1);
+      err = OS_ERR_Z;
     }
     
     new1->release_time = i;
@@ -192,14 +192,14 @@ Tree * insert(OS_TASK_RELEASE_TIME i, Tree * t, OS_TCB* block) {
 *               
 *********************************************************************************************************
 */
-Tree * delete_node(OS_TASK_RELEASE_TIME i, Tree * t) {
+Tree * DelRecTree(OS_TASK_RELEASE_TIME i, Tree * t) {
 /* delete_nodes i from the tree if it's there.               */
 /* Return a pointer to the resulting tree.              */
   Tree * x;
   OS_ERR  err;
   if (t==NULL) return NULL;
   t = splay(i,t);
-  if (i == t->release_time && (t->entries == 1)) {               /* found it */
+  if (i == t->release_time) {               /* found it */
     if (t->left == NULL) {
         x = t->right;
     } else {
@@ -210,9 +210,6 @@ Tree * delete_node(OS_TASK_RELEASE_TIME i, Tree * t) {
     //free(t);
     return x;
     }
-  else if(i == t->release_time && (t->entries > 1)) {
-    (t->entries)--;
-  }
   else{
 
   }
@@ -232,7 +229,7 @@ Tree * delete_node(OS_TASK_RELEASE_TIME i, Tree * t) {
 *               
 *********************************************************************************************************
 */
-Tree* find_min(Tree *t)
+Tree* GetMinRecTree(Tree *t)
 {
   if(t==NULL)
   {

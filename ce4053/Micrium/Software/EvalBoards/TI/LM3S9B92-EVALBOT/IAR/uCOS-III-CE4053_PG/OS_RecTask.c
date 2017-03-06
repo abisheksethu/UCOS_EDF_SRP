@@ -8,7 +8,6 @@
 *               software available.  Your honesty is greatly appreciated.
 *********************************************************************************************************
 */
-
 /*
 *********************************************************************************************************
 *
@@ -20,7 +19,6 @@
 *
 *********************************************************************************************************
 */
-
 /*
 *********************************************************************************************************
 *                                             INCLUDE FILES
@@ -40,7 +38,12 @@
 *********************************************************************************************************
 */
 static CPU_INT32U  counter;
-extern Tree * root;
+extern Tree * RecursionTree;
+extern Tree * SchedulerTree;
+/*OVERHEAD CALCULATION*/
+extern CPU_TS StartTime;
+extern CPU_TS StartTime2;
+CPU_TS OverheadValue;
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -70,7 +73,7 @@ void  OSTaskHandler (void)
   CPU_INT32U abs_deadline = 0;
   Tree *min;
   /*--------------- FIND MINIMUM TASK RELEASE TIME -------*/    
-  min = find_min(root);
+  min = GetMinRecTree(RecursionTree);
   if( min->release_time == counter )
   { 
     entry = min->entries;
@@ -81,25 +84,29 @@ void  OSTaskHandler (void)
         /* --------------- SAVE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR A TASK -------*/
         rel_time = counter + (min->p_tcb[i]->TaskPeriod);
         abs_deadline = counter + (min->p_tcb[i]->TaskDeadline);
+        rel_time = CounterOverflow(rel_time);
+        abs_deadline = CounterOverflow(abs_deadline);
         min->p_tcb[i]->TaskRelPeriod = rel_time;
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
+        /* --------------- ADD TASK TO RECURSION LIST -------*/
+        RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);
+        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+        SchedulerTree = InsertEDFTree(abs_deadline, SchedulerTree, min->p_tcb[i]);
         /* --------------- ADD TCB TO READY LIST -------*/
         OSTaskInsertTCB(min->p_tcb[i]);
-        /* --------------- ADD TASK TO TASK RECURSION LIST -------*/
-        root = insert(rel_time, root, min->p_tcb[i]);
-        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
-        /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
-        root = delete_node(min->release_time, root);
       }
       else {
       }
-    } 
+    }
+    /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
+    RecursionTree = DelRecTree(min->release_time, RecursionTree);
   }
   else {
   
   }
   /* Update the local counter and boundary check */
-  counter = counter + 1; 
+  counter = counter + 1;
+  counter = CounterOverflow(counter);
 }
 /*
 *********************************************************************************************************
@@ -118,49 +125,54 @@ void  OSTaskHandler (void)
 */
 void OSTaskInsertTCB(OS_TCB *p_tcb) 
 {
-  CPU_STK *p_sp;
-  CPU_STK_SIZE  i;
-                                                                 /* --------------- CLEAR THE TASK'S STACK --------------- */
-  if ((p_tcb->Opt & OS_OPT_TASK_STK_CHK) != (OS_OPT)0) {         /* See if stack checking has been enabled                 */
+    CPU_STK *p_sp;
+    CPU_STK_SIZE  i;
+    
+    /* --------------- CLEAR THE TASK'S STACK --------------- */
+    if ((p_tcb->Opt & OS_OPT_TASK_STK_CHK) != (OS_OPT)0) {         /* See if stack checking has been enabled                 */
       if ((p_tcb->Opt & OS_OPT_TASK_STK_CLR) != (OS_OPT)0) {     /* See if stack needs to be cleared                       */
-          p_sp = p_tcb->StkBasePtr;
-          for (i = 0u; i < p_tcb->StkSize; i++) {               /* Stack grows from HIGH to LOW memory                    */
-              *p_sp = (CPU_STK)0;                               /* Clear from bottom of stack and up!                     */
-              p_sp++;
-          }
+        p_sp = p_tcb->StkBasePtr;
+        for (i = 0u; i < p_tcb->StkSize; i++) {               /* Stack grows from HIGH to LOW memory                    */
+          *p_sp = (CPU_STK)0;                               /* Clear from bottom of stack and up!                     */
+          p_sp++;
+        }
       }
-  }
-  
-  p_sp = OSTaskStkInit(p_tcb->TaskEntryAddr,
-                       p_tcb->TaskEntryArg,
-                       p_tcb->StkBasePtr,
-                       p_tcb->StkLimitPtr,
-                       p_tcb->StkSize,
-                       p_tcb->Opt);
-  
-  p_tcb->StkPtr    = p_sp;                                /* Save the new top-of-stack pointer      */ 
-  p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_RDY;         /* Indicate that the task in READY STATE  */
-  
-  CPU_SR_ALLOC();
-                                                          /* --------------- ADD TASK TO READY LIST --------------- */
-  OS_CRITICAL_ENTER();
-  OS_PrioInsert(p_tcb->Prio);                             //Remove
-  OS_RdyListInsertTail(p_tcb);
-  OSTaskQty++;                                            /* Increment the #tasks counter                           */
-  if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
+    }
+    
+    p_sp = OSTaskStkInit(p_tcb->TaskEntryAddr,
+                         p_tcb->TaskEntryArg,
+                         p_tcb->StkBasePtr,
+                         p_tcb->StkLimitPtr,
+                         p_tcb->StkSize,
+                         p_tcb->Opt);
+    
+    p_tcb->StkPtr    = p_sp;                                /* Save the new top-of-stack pointer      */ 
+    p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_RDY;         /* Indicate that the task in READY STATE  */
+    OS_PrioInsert(p_tcb->Prio);
+    
+#if TASK_RECURSION_DEBUG                                                                
+    CPU_SR_ALLOC();                                        /* --------------- ADD TASK TO READY LIST --------------- */
+    OS_CRITICAL_ENTER();
+    OS_PrioInsert(p_tcb->Prio);                             
+    OS_RdyListInsertTail(p_tcb);
+#if OS_CFG_DBG_EN > 0u
+    OS_TaskDbgListAdd(p_tcb);
+#endif
+    OSTaskQty++;                                            /* Increment the #tasks counter                           */
+    if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
       OS_CRITICAL_EXIT();
       return;
-  }    
-  OS_CRITICAL_EXIT_NO_SCHED();
-  OSSched();                                              /* EDF Scheduling */
-  //OSEDFSched(p_err);
+    }    
+    OS_CRITICAL_EXIT_NO_SCHED();
+#endif
+    
+    OSEDFSched();
 }
-
 
 /*$PAGE*/
 /*
 ************************************************************************************************************************
-*                                                      SCHEDULER
+*                                                     EDF SCHEDULER
 *
 * Description: This function is called by other uC/OS-III services to determine whether a new, high priority task has
 *              been made ready to run.  This function is invoked by TASK level code and is not used to reschedule tasks
@@ -173,99 +185,58 @@ void OSTaskInsertTCB(OS_TCB *p_tcb)
 * Note(s)    : 1) Rescheduling is prevented when the scheduler is locked (see OSSchedLock())
 ************************************************************************************************************************
 */
-void  OSEDFSched (OS_ERR   *p_err)
-{
-    CPU_BOOLEAN   self;
+void  OSEDFSched (void)
+{  
+#if EDF_SCHEDULING_DEBUG     
+  Tree * min;
+  CPU_INT32U entry; 
+  OS_TCB* p_tcb;
+  OS_PRIO user_priority_level = 5;
+  
+  /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
+  min = GetMinEDFTree(root2);
+  entry = min->entries;
+  if (min != NULL) 
+  {
     CPU_SR_ALLOC();
-    OS_TCB   *p_tcb;
-    OS_PRIO   prio_new;
-
-#ifdef OS_SAFETY_CRITICAL
-    if (p_err == (OS_ERR *)0) {
-        OS_SAFETY_CRITICAL_EXCEPTION();
-        return;
-    }
-#endif
-
-#if OS_CFG_CALLED_FROM_ISR_CHK_EN > 0u
-    if (OSIntNestingCtr > (OS_NESTING_CTR)0) {              /* ---------- CANNOT CREATE A TASK FROM AN ISR ---------- */
-       *p_err = OS_ERR_TASK_CHANGE_PRIO_ISR;
-        return;
-    }
-#endif
-    
-    /* ---------- UPDATE THE SCHEDULER LIST AND REMOVE IF ABS_DEADLINE < COUNTER ---------- */ 
-    
-    /*---------- LOOP: TRAVERSE ALL THE NODE MIN TO MAX - ASSIGN PRIORITY FROM 5 AND GET TCB POINTER TO ASSIGN P_TCB ---------- */
-    if (prio_new >= (OS_CFG_PRIO_MAX - 1u)) {               /* Cannot set to Idle Task priority                       */
-        *p_err = OS_ERR_PRIO_INVALID;
-        return;
-    }
-
-    if (p_tcb == (OS_TCB *)0) {                             /* See if want to change priority of 'self'               */
-        CPU_CRITICAL_ENTER();
-        p_tcb = OSTCBCurPtr;
-        CPU_CRITICAL_EXIT();
-        self  = DEF_TRUE;
-    } else {
-        self  = DEF_FALSE;
-    }
-
     OS_CRITICAL_ENTER();
-    switch (p_tcb->TaskState) {
-        case OS_TASK_STATE_RDY:
-             OS_RdyListRemove(p_tcb);                       /* Remove from current priority                           */
-             p_tcb->Prio = prio_new;                        /* Set new task priority                                  */
-             OS_PrioInsert(p_tcb->Prio);
-             if (self == DEF_TRUE) {
-                 OS_RdyListInsertHead(p_tcb);
-             } else {
-                 OS_RdyListInsertTail(p_tcb);
-             }
-             break;
-
-        case OS_TASK_STATE_DLY:                             /* Nothing to do except change the priority in the OS_TCB */
-        case OS_TASK_STATE_SUSPENDED:
-        case OS_TASK_STATE_DLY_SUSPENDED:
-             p_tcb->Prio = prio_new;                        /* Set new task priority                                  */
-             break;
-
-        case OS_TASK_STATE_PEND:
-        case OS_TASK_STATE_PEND_TIMEOUT:
-        case OS_TASK_STATE_PEND_SUSPENDED:
-        case OS_TASK_STATE_PEND_TIMEOUT_SUSPENDED:
-             switch (p_tcb->PendOn) {                       /* What to do depends on what we are pending on           */
-                 case OS_TASK_PEND_ON_TASK_Q:               /* Nothing to do except change the priority in the OS_TCB */
-                 case OS_TASK_PEND_ON_TASK_SEM:
-                 case OS_TASK_PEND_ON_FLAG:
-                      p_tcb->Prio = prio_new;               /* Set new task priority                                  */
-                      break;
-
-                 case OS_TASK_PEND_ON_MUTEX:
-                 case OS_TASK_PEND_ON_MULTI:
-                 case OS_TASK_PEND_ON_Q:
-                 case OS_TASK_PEND_ON_SEM:
-                      OS_PendListChangePrio(p_tcb,
-                                            prio_new);
-                      break;
-
-                 default:
-                      break;
-            }
-             break;
-
-        default:
-             OS_CRITICAL_EXIT();
-             *p_err = OS_ERR_STATE_INVALID;
-             return;
-    }
-
-    OS_CRITICAL_EXIT_NO_SCHED();
     
-    OSSched();                                              /* Run highest priority task ready                        */
-    *p_err = OS_ERR_NONE;
+    //CPU_INT_DIS();
+    for(int j=0; (j < entry && j <= NUM_OF_TASKS); j++)
+    { 
+      user_priority_level++;
+      p_tcb = min->p_tcb[j];
+      p_tcb->Prio = user_priority_level;
+      if (p_tcb == OSTCBCurPtr) 
+      { 
+        OS_CRITICAL_EXIT();
+        CPU_INT_EN();
+        return;
+      }
+      else 
+      {  
+        if((OS_PrioGetHighest() == 6) && (p_tcb->Prio == 6))
+          OS_RdyListRemove(OSTCBCurPtr);
+        OS_PrioInsert(p_tcb->Prio); 
+        OS_RdyListInsertTail(p_tcb);
+        if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
+          OS_CRITICAL_EXIT();
+          CPU_INT_EN();
+          return;
+        }    
+        
+      }     
+    }    
+    OS_CRITICAL_EXIT_NO_SCHED();
+    //CPU_INT_EN();
+  }
+  else{
+    return;
+  }
+#endif
+  OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
+  OSSched();
 }
-
 /*
 ************************************************************************************************************************
 *                                                    CREATE A Recursive TASK
@@ -370,9 +341,7 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 #endif
     CPU_STK       *p_sp;
     CPU_STK       *p_stk_limit;
-    CPU_SR_ALLOC();
-
-
+    //CPU_SR_ALLOC();
 
 #ifdef OS_SAFETY_CRITICAL
     if (p_err == (OS_ERR *)0) {
@@ -507,27 +476,26 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 
     OSTaskCreateHook(p_tcb);                                /* Call user defined hook                                 */
   
-    root = insert(p_tcb->TaskPeriod, root, p_tcb);    /* --------------- ADD TCB TO SPLAY TREE --------------- */
-   /* --------------- ADD TCB TO SCHEDULNG LIST --------------- */  
-                                                          /* --------------- ADD TASK TO READY LIST --------------- */
+    RecursionTree = InsertRecTree(p_tcb->TaskRelPeriod, RecursionTree, p_tcb);         /* --------------- ADD TCB TO RECURSION LIST --------------- */
+    SchedulerTree = InsertEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree, p_tcb); /* --------------- ADD TCB TO SCHEDULNG LIST --------------- */  
+     
+#if TASK_RECURSION_DEBUG                                                                 
+    CPU_SR_ALLOC();                                           /* --------------- ADD TASK TO READY LIST --------------- */
     OS_CRITICAL_ENTER();
-    OS_PrioInsert(p_tcb->Prio);                           //Remove
+    OS_PrioInsert(p_tcb->Prio);                             
     OS_RdyListInsertTail(p_tcb);
-    
 #if OS_CFG_DBG_EN > 0u
     OS_TaskDbgListAdd(p_tcb);
 #endif
-
     OSTaskQty++;                                            /* Increment the #tasks counter                           */
-
     if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
-        OS_CRITICAL_EXIT();
-        return;
-    }
-
+      OS_CRITICAL_EXIT();
+      return;
+    }    
     OS_CRITICAL_EXIT_NO_SCHED();
-    OSSched();
-    //OSEDFSched(p_err);
+#endif
+    
+    OSEDFSched();
 }
                      
 /*
@@ -554,8 +522,6 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
                  OS_ERR  *p_err)
 {
     CPU_SR_ALLOC();
-
-
 
 #ifdef OS_SAFETY_CRITICAL
     if (p_err == (OS_ERR *)0) {
@@ -647,11 +613,135 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
     OS_TaskRecDelTCB(p_tcb);                                /* Initialize the TCB to default values                   */
 
     OS_CRITICAL_EXIT_NO_SCHED();
-    OSSched();                                              /* Find new highest priority task                         */
+                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
+    SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree);
+      
+    OSEDFSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;
 }
 
+/*$PAGE*/
+/*
+************************************************************************************************************************
+*                                                     DELETE A APP START TASK
+*
+* Description: This function allows you to delete a task.  The calling task can delete itself by specifying a NULL
+*              pointer for 'p_tcb'.  The deleted task is returned to the dormant state and can be re-activated by
+*              creating the deleted task again.
+*
+* Arguments  : p_tcb      is the TCB of the tack to delete
+*
+*              p_err      is a pointer to an error code returned by this function:
+*
+*                             OS_ERR_NONE                  if the call is successful
+*                             OS_ERR_STATE_INVALID         if the state of the task is invalid
+*                             OS_ERR_TASK_DEL_IDLE         if you attempted to delete uC/OS-III's idle task
+*                             OS_ERR_TASK_DEL_INVALID      if you attempted to delete uC/OS-III's ISR handler task
+*                             OS_ERR_TASK_DEL_ISR          if you tried to delete a task from an ISR
+************************************************************************************************************************
+*/
+
+void  OSTaskAppStartDel (OS_TCB  *p_tcb,
+                 OS_ERR  *p_err)
+{
+    CPU_SR_ALLOC();
+
+#ifdef OS_SAFETY_CRITICAL
+    if (p_err == (OS_ERR *)0) {
+        OS_SAFETY_CRITICAL_EXCEPTION();
+        return;
+    }
+#endif
+
+#if OS_CFG_CALLED_FROM_ISR_CHK_EN > 0u
+    if (OSIntNestingCtr > (OS_NESTING_CTR)0) {              /* See if trying to delete from ISR                       */
+       *p_err = OS_ERR_TASK_DEL_ISR;
+        return;
+    }
+#endif
+
+    if (p_tcb == &OSIdleTaskTCB) {                          /* Not allowed to delete the idle task                    */
+        *p_err = OS_ERR_TASK_DEL_IDLE;
+        return;
+    }
+
+#if OS_CFG_ISR_POST_DEFERRED_EN > 0u
+    if (p_tcb == &OSIntQTaskTCB) {                          /* Cannot delete the ISR handler task                     */
+        *p_err = OS_ERR_TASK_DEL_INVALID;
+        return;
+    }
+#endif
+
+    if (p_tcb == (OS_TCB *)0) {                             /* Delete 'Self'?                                         */
+        CPU_CRITICAL_ENTER();
+        p_tcb  = OSTCBCurPtr;                               /* Yes.                                                   */
+        CPU_CRITICAL_EXIT();
+    }
+
+    OS_CRITICAL_ENTER();
+    switch (p_tcb->TaskState) {
+        case OS_TASK_STATE_RDY:
+             OS_RdyListRemove(p_tcb);
+             break;
+
+        case OS_TASK_STATE_SUSPENDED:
+             break;
+
+        case OS_TASK_STATE_DLY:                             /* Task is only delayed, not on any wait list             */
+        case OS_TASK_STATE_DLY_SUSPENDED:
+             OS_TickListRemove(p_tcb);
+             break;
+
+        case OS_TASK_STATE_PEND:
+        case OS_TASK_STATE_PEND_SUSPENDED:
+        case OS_TASK_STATE_PEND_TIMEOUT:
+        case OS_TASK_STATE_PEND_TIMEOUT_SUSPENDED:
+             OS_TickListRemove(p_tcb);
+             switch (p_tcb->PendOn) {                       /* See what we are pending on                             */
+                 case OS_TASK_PEND_ON_NOTHING:
+                 case OS_TASK_PEND_ON_TASK_Q:               /* There is no wait list for these two                    */
+                 case OS_TASK_PEND_ON_TASK_SEM:
+                      break;
+
+                 case OS_TASK_PEND_ON_FLAG:                 /* Remove from wait list                                  */
+                 case OS_TASK_PEND_ON_MULTI:
+                 case OS_TASK_PEND_ON_MUTEX:
+                 case OS_TASK_PEND_ON_Q:
+                 case OS_TASK_PEND_ON_SEM:
+                      OS_PendListRemove(p_tcb);
+                      break;
+
+                 default:
+                      break;
+             }
+             break;
+
+        default:
+            OS_CRITICAL_EXIT();
+            *p_err = OS_ERR_STATE_INVALID;
+            return;
+    }
+
+#if OS_CFG_TASK_Q_EN > 0u
+    (void)OS_MsgQFreeAll(&p_tcb->MsgQ);                     /* Free task's message queue messages                     */
+#endif
+
+    OSTaskDelHook(p_tcb);                                   /* Call user defined hook                                 */
+
+#if OS_CFG_DBG_EN > 0u
+    OS_TaskDbgListRemove(p_tcb);
+#endif
+    OSTaskQty--;                                            /* One less task being managed                            */
+
+    OS_TaskInitTCB(p_tcb);                                  /* Initialize the TCB to default values                   */
+    p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_DEL;         /* Indicate that the task was deleted                     */
+
+    OS_CRITICAL_EXIT_NO_SCHED();
+    OSSched();                                              /* Find new highest priority task                         */
+
+    *p_err = OS_ERR_NONE;
+}
 
 /*$PAGE*/
 /*
@@ -783,4 +873,32 @@ void  OS_TaskRecDelTCB (OS_TCB *p_tcb)
     p_tcb->DbgNextPtr         = (OS_TCB        *)0;
     p_tcb->DbgNamePtr         = (CPU_CHAR      *)((void *)" ");
 #endif
+}
+/*
+*********************************************************************************************************
+*                                          RESETTING THE COUNTER
+*
+* Description : If a 32bit unsigned integer crosses to window 1, it resets to window 0
+*
+* Arguments   : 32 bit unsigned integer in window 0/1
+*
+* Returns     : 32 bit unsigned integer in window 0
+*
+* Notes       : Window 0 --> counter < BORDER_VALUE
+*               Window 1 --> counter > BORDER_VALUE
+*               Application should use for the 32 bit unsigned integers variables,
+*               which are not used for comparision.(lesser than or greater than)
+*               
+*********************************************************************************************************
+*/
+CPU_INT32U CounterOverflow (CPU_INT32U counter) {
+	CPU_INT32U window = 0;
+	window = (counter & BORDER_BIT) > 7;
+	if(window == 1) {
+		counter = counter - BORDER_VALUE;
+	}
+	else {
+		counter = counter;	
+	}
+	return counter;
 }

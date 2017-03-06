@@ -56,10 +56,12 @@ typedef  union {
 
 /*
 *********************************************************************************************************
-*                                       LOCAL GLOBAL VARIABLES
+*                                          GLOBAL VARIABLES
 *********************************************************************************************************
 */
-
+/*OVERHEAD CALCULATION*/
+CPU_TS StartTime;
+CPU_TS StartTime2;
 /*
 *********************************************************************************************************
 *                                      LOCAL FUNCTION PROTOTYPES
@@ -179,11 +181,12 @@ __root  const  APP_INTVECT_ELEM  __vector_table[] @ ".intvec" = {
     BSP_IntHandlerEPI,
     BSP_IntHandlerGPIOJ
 };
-
 static void App_TaskLoader  (void)
 {
     /*Implementation for time lapsed*/
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);    
+    StartTime = OS_TS_GET ();
+    StartTime2 = OS_TS_GET (); 
     OSTaskHandler();
 }
 

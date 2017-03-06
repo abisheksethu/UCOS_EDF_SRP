@@ -207,6 +207,9 @@ void  OSInit (OS_ERR  *p_err)
 #endif
 
     OSCfg_Init();
+                                                               /* Tree Initialization */
+    SplayTreeInit();
+    EDFTreeInit();
 }
 
 /*$PAGE*/
@@ -354,12 +357,9 @@ void  OSSafetyCriticalStart (void)
 * Note(s)    : 1) Rescheduling is prevented when the scheduler is locked (see OSSchedLock())
 ************************************************************************************************************************
 */
-
 void  OSSched (void)
 {
     CPU_SR_ALLOC();
-
-
 
     if (OSIntNestingCtr > (OS_NESTING_CTR)0) {              /* ISRs still nested?                                     */
         return;                                             /* Yes ... only schedule when no nested ISRs              */

@@ -1605,6 +1605,10 @@ void         OSRecTaskCreate            (OS_TCB                *p_tcb,
 void          OSRecTaskDel               (OS_TCB               *p_tcb,
                                          OS_ERR                *p_err);
 
+void          OSTaskAppStartDel          (OS_TCB               *p_tcb,
+                                         OS_ERR                *p_err);
+
+
 void          OSTaskCreate              (OS_TCB                *p_tcb,
                                          CPU_CHAR              *p_name,
                                          OS_TASK_PTR            p_task,
@@ -1843,7 +1847,7 @@ void          OSSchedRoundRobinYield    (OS_ERR                *p_err);
 #endif
 
 void          OSSched                   (void);
-void          OSEDFSched                (OS_ERR                *p_err);
+void          OSEDFSched                (void);
 
 void          OSSchedLock               (OS_ERR                *p_err);
 void          OSSchedUnlock             (OS_ERR                *p_err);
@@ -2355,9 +2359,9 @@ void          OS_TickListUpdate         (void);
 ************************************************************************************************************************
 *                                                 uC/OS-III DATA STRUCTUREs
 ************************************************************************************************************************
-*/
-           
-#define NUM_OF_TASKS 5
+*/    
+/* TASK RECURSION LIST */
+#define NUM_OF_TASKS            (5u)
              
 typedef struct tree_node Tree;
 struct tree_node {
@@ -2367,11 +2371,24 @@ struct tree_node {
     CPU_INT32U entries;
 };
   
-Tree * delete_node(OS_TASK_RELEASE_TIME, Tree * );
-Tree * insert(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * find_min(Tree *t);
-void Splay_Tree_Init(void);
+Tree * DelRecTree(OS_TASK_RELEASE_TIME, Tree * );
+Tree * InsertRecTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
+Tree * GetMinRecTree(Tree *t);
+void SplayTreeInit(void);
 
+/*COUNTER OVERFLOW VARIABLES*/
+#define BORDER_BIT                                      (0x80000000)
+#define BORDER_VALUE                                    (2147483647u)
+CPU_INT32U CounterOverflow(CPU_INT32U);
+
+/*EDF SCHEDULER LIST*/
+void EDFTreeInit (void);
+Tree * DelEDFTree(OS_TASK_RELEASE_TIME, Tree * );
+Tree * InsertEDFTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
+Tree * GetMinEDFTree(Tree *t);
+
+#define EDF_SCHEDULING_DEBUG                            (0u)
+#define TASK_RECURSION_DEBUG                            (1u)
 /*
 ************************************************************************************************************************
 *                                                 uC/OS-III MODULE END
