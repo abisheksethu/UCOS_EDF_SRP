@@ -43,9 +43,9 @@
 *********************************************************************************************************
 */
 
-#define  APP_TASK_START_PRIO                        	1u
-#define  APP_TASK_ONE_PRIO                              2u
-#define  APP_TASK_TWO_PRIO                              3u
+#define  APP_TASK_START_PRIO                        	4u
+#define  APP_TASK_ONE_PRIO                              5u
+#define  APP_TASK_TWO_PRIO                              6u
 
 
 
