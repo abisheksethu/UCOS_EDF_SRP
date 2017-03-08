@@ -1585,7 +1585,7 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
 
 void         OSTaskHandler              (void);
 
-void         OSTaskInsertTCB            (OS_TCB *p_tcb);
+void         OSTCBStackReset            (OS_TCB *p_tcb);
 void         OSRecTaskCreate            (OS_TCB                *p_tcb,
                                          CPU_CHAR              *p_name,
                                          OS_TASK_PTR            p_task,
@@ -2412,9 +2412,6 @@ NODE* find_min();
 NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
-
-#define EDF_SCHEDULING_DEBUG                            (0u)
-#define TASK_RECURSION_DEBUG                            (1u)
 /*
 ************************************************************************************************************************
 *                                                 uC/OS-III MODULE END

@@ -41,10 +41,10 @@ static CPU_INT32U  counter;
 extern Tree * RecursionTree;
 extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
+
 /*OVERHEAD CALCULATION*/
 extern CPU_TS StartTime;
 extern CPU_TS StartTime2;
-extern HEAP* HEAP1;
 CPU_TS OverheadValue;
 /*
 *********************************************************************************************************
@@ -74,6 +74,7 @@ void  OSTaskHandler (void)
   CPU_INT32U entry = 0;
   CPU_INT32U abs_deadline = 0;
   Tree *min;
+  
   /*--------------- FIND MINIMUM TASK RELEASE TIME -------*/    
   min = GetMinRecTree(RecursionTree);
   /**************check if the counter value equals the minimum relese time value***********/
@@ -83,33 +84,38 @@ void  OSTaskHandler (void)
     for(int i=0; (i < entry && i < NUM_OF_TASKS); i++)
     {
       if(min->p_tcb[i]!= NULL)
-      {   
-         /* --------------- ADD TASK TO SCHEDULING LIST -------*/
-          heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskDeadline);
-         // OSTaskInsertTCB(min->p_tcb[i]);
+      { 
+        /* --------------- RESET TCB STACK -------*/
+        OSTCBStackReset(min->p_tcb[i]);
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
         rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
         abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
         min->p_tcb[i]->TaskRelPeriod = rel_time;
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
-       
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
+        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+        heap_node_create(min->p_tcb[i],abs_deadline);
+      }
+      else
+      {
+        /* Update the local counter and boundary check */
+        counter = CounterOverflow((counter+1));
+        return ;
+      }
     }
     /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
     RecursionTree = DelRecTree(min->release_time, RecursionTree);
+    OSSched();
   }
-  
-    OSEDFSched();
   /* Update the local counter and boundary check */
   counter = CounterOverflow((counter+1));
 }
-}
 /*
 *********************************************************************************************************
-*                                          ADD TCB TO READY LIST
+*                                          RESET STACK FOR NEW TASK
 *
-* Description : Add TCB to ready list with the stack ptr and state as ready
+* Description : Reset TCB stack and initialise to top of the stack
 *              
 *
 * Arguments   : tcb
@@ -120,7 +126,7 @@ void  OSTaskHandler (void)
 *               
 *********************************************************************************************************
 */
-void OSTaskInsertTCB(OS_TCB *p_tcb) 
+void OSTCBStackReset(OS_TCB *p_tcb) 
 {
     CPU_STK *p_sp;
     CPU_STK_SIZE  i;
@@ -145,25 +151,6 @@ void OSTaskInsertTCB(OS_TCB *p_tcb)
     
     p_tcb->StkPtr    = p_sp;                                /* Save the new top-of-stack pointer      */ 
     p_tcb->TaskState = (OS_STATE)OS_TASK_STATE_RDY;         /* Indicate that the task in READY STATE  */
-    OS_PrioInsert(p_tcb->Prio);
-    
-#if TASK_RECURSION_DEBUG                                                                
-    CPU_SR_ALLOC();                                        /* --------------- ADD TASK TO READY LIST --------------- */
-    OS_CRITICAL_ENTER();
-    OS_PrioInsert(p_tcb->Prio);                             
-    OS_RdyListInsertTail(p_tcb);
-#if OS_CFG_DBG_EN > 0u
-    OS_TaskDbgListAdd(p_tcb);
-#endif
-    OSTaskQty++;                                            /* Increment the #tasks counter                           */
-    if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
-      OS_CRITICAL_EXIT();
-      return;
-    }    
-    OS_CRITICAL_EXIT_NO_SCHED();
-#endif
-    
-    OSEDFSched();
 }
 
 /*$PAGE*/
@@ -183,19 +170,19 @@ void OSTaskInsertTCB(OS_TCB *p_tcb)
 ************************************************************************************************************************
 */
 OS_TCB*  OSEDFSched (void)
-{  
-#if EDF_SCHEDULING_DEBUG     
- 
+{   
   NODE* earliest_deadline;
   
   /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
   earliest_deadline=find_min();
+  
+  /* ----------FINDING OVERHEAD FROM ISR TO HIGHEST PRIORITY TASK ---------- */
   OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
-  if (earliest_deadline== NULL)
-  return earliest_deadline;
+  
+  if (earliest_deadline == NULL)
+    return NULL;
   else 
-  return earliest_deadline->ptcb;      
-#endif
+    return earliest_deadline->ptcb;      
 }
 /*
 ************************************************************************************************************************
@@ -301,7 +288,6 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 #endif
     CPU_STK       *p_sp;
     CPU_STK       *p_stk_limit;
-    //CPU_SR_ALLOC();
 
 #ifdef OS_SAFETY_CRITICAL
     if (p_err == (OS_ERR *)0) {
@@ -408,9 +394,9 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
     counter              = 0;
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
-    p_tcb->TaskRelPeriod = 0;                   /* Initial release time to be assumed as zero */        
-    p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline */
-    p_tcb->TaskAbsDeadline = p_task_deadline;                 /* Save Absolute Deadline */   
+    p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
+    p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline for Job1*/
+    p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
     
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
     if (time_quanta == (OS_TICK)0) {
@@ -435,26 +421,7 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 #endif
 
     OSTaskCreateHook(p_tcb);                                /* Call user defined hook                                 */
-  
     RecursionTree = InsertRecTree(p_tcb->TaskRelPeriod, RecursionTree, p_tcb);         /* --------------- ADD TCB TO RECURSION LIST --------------- */
-    //SchedulerTree = InsertEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree, p_tcb);      /* --------------- ADD TCB TO SCHEDULNG LIST --------------- */  
-     
-#if TASK_RECURSION_DEBUG                                                                 
-    CPU_SR_ALLOC();                                           /* --------------- ADD TASK TO READY LIST --------------- */
-    OS_CRITICAL_ENTER();
-    OS_PrioInsert(p_tcb->Prio);                             
-    OS_RdyListInsertTail(p_tcb);
-#if OS_CFG_DBG_EN > 0u
-    OS_TaskDbgListAdd(p_tcb);
-#endif
-    OSTaskQty++;                                            /* Increment the #tasks counter                           */
-    if (OSRunning != OS_STATE_OS_RUNNING) {                 /* Return if multitasking has not started                 */
-      OS_CRITICAL_EXIT();
-      return;
-    }    
-    OS_CRITICAL_EXIT_NO_SCHED();
-#endif
-    
     OSSched();
 }
                      
@@ -574,9 +541,8 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
 
     OS_CRITICAL_EXIT_NO_SCHED();
                                                              /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
-    //SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree);
     NODE* completed_task = extract_min();
-   free(completed_task);
+    free(completed_task);
     OSSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;

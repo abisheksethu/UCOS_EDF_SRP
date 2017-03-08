@@ -207,7 +207,7 @@ void  OSInit (OS_ERR  *p_err)
 #endif
 
     OSCfg_Init();
-                                                               /* Tree Initialization */
+    /* Tree Initialization */
     SplayTreeInit();
     heap_create(); 
 }
@@ -359,44 +359,51 @@ void  OSSafetyCriticalStart (void)
 */
 void  OSSched (void)
 {
-    CPU_SR_ALLOC();
-
-    if (OSIntNestingCtr > (OS_NESTING_CTR)0) {              /* ISRs still nested?                                     */
-        return;                                             /* Yes ... only schedule when no nested ISRs              */
-    }
-
-    if (OSSchedLockNestingCtr > (OS_NESTING_CTR)0) {        /* Scheduler locked?                                      */
-        return;                                             /* Yes                                                    */
-    }
-
-    CPU_INT_DIS();
-    OSPrioHighRdy   = OS_PrioGetHighest();  
-    
-    if (OSPrioHighRdy>3) 
-   {
-      OS_TCB* task_to_run = OSEDFSched();
-      if(!task_to_run)
+  CPU_SR_ALLOC();
+  
+  if (OSIntNestingCtr > (OS_NESTING_CTR)0) {              /* ISRs still nested?                                     */
+    return;                                             /* Yes ... only schedule when no nested ISRs              */
+  }
+  
+  if (OSSchedLockNestingCtr > (OS_NESTING_CTR)0) {        /* Scheduler locked?                                      */
+    return;                                             /* Yes                                                    */
+  }
+  
+  CPU_INT_DIS();
+  /* Find the highest priority ready from ready list*/
+  OSPrioHighRdy   = OS_PrioGetHighest();  
+  
+  if (OSPrioHighRdy > 5) 
+  { 
+    /* Find the highest priority ready from Scheduler tree*/
+    OS_TCB* task_to_run = OSEDFSched();
+    if(task_to_run == 0)
     {
-    /* Find the highest priority ready                        */
-    OSTCBHighRdyPtr = OSRdyList[OSPrioHighRdy].HeadPtr;
+      OSTCBHighRdyPtr = OSRdyList[OSPrioHighRdy].HeadPtr;
     }
     else
     {
-     OSTCBHighRdyPtr=task_to_run;
+      OSTCBHighRdyPtr = task_to_run;
     }
-   }
-if (OSTCBHighRdyPtr == OSTCBCurPtr) 
-    {                   /* Current task is still highest priority task?           */
-        CPU_INT_EN();                                       /* Yes ... no need to context switch                      */
-        return;
-    }
+  }
+  else
+  {
+    OSTCBHighRdyPtr = OSRdyList[OSPrioHighRdy].HeadPtr;
+  }
+  
+  if (OSTCBHighRdyPtr == OSTCBCurPtr) 
+  {                                                      /* Current task is still highest priority task?           */
+    CPU_INT_EN();                                       /* Yes ... no need to context switch                      */
+    return;
+  }
+  
 #if OS_CFG_TASK_PROFILE_EN > 0u
-    OSTCBHighRdyPtr->CtxSwCtr++;                            /* Inc. # of context switches to this task                */
+  OSTCBHighRdyPtr->CtxSwCtr++;                            /* Inc. # of context switches to this task                */
 #endif
-    OSTaskCtxSwCtr++;                                       /* Increment context switch counter                       */
-
-    OS_TASK_SW();                                           /* Perform a task level context switch                    */
-    CPU_INT_EN();
+  OSTaskCtxSwCtr++;                                       /* Increment context switch counter                       */
+  
+  OS_TASK_SW();                                           /* Perform a task level context switch                    */
+  CPU_INT_EN();
 }
 
 /*$PAGE*/

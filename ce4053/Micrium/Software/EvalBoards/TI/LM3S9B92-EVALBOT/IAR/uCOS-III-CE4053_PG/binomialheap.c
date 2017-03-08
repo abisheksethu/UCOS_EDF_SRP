@@ -53,9 +53,9 @@ void heap_init()
 { 
   OS_ERR      err, err1;
   OS_MEM_QTY node_size = sizeof(CPU_INT32U);
-  OSMemCreate((OS_MEM*)&MemoryCB_heap, (CPU_CHAR*)"binomial_heap", &MemoryPartition_heap[0][0], (OS_MEM_QTY)(10), (OS_MEM_SIZE)(10*node_size), &err);
-  HEAP1=NULL;
+  OSMemCreate((OS_MEM*)&MemoryCB_heap, (CPU_CHAR*)"binomial_heap", &MemoryPartition_heap[0][0], (OS_MEM_QTY)(1), (OS_MEM_SIZE)(15*node_size), &err);
   OSMemCreate((OS_MEM*)&MemoryCB_heap_node, (CPU_CHAR*)"binomial_heap_node", &MemoryPartition_heap_node[0][0], (OS_MEM_QTY)(10), (OS_MEM_SIZE)(10*node_size), &err1);
+  HEAP1=NULL;
 }
     
 void heap_create()
