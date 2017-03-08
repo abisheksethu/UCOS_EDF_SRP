@@ -1847,7 +1847,7 @@ void          OSSchedRoundRobinYield    (OS_ERR                *p_err);
 #endif
 
 void          OSSched                   (void);
-void          OSEDFSched                (void);
+OS_TCB*          OSEDFSched                (void);
 
 void          OSSchedLock               (OS_ERR                *p_err);
 void          OSSchedUnlock             (OS_ERR                *p_err);
@@ -2363,14 +2363,14 @@ void          OS_TickListUpdate         (void);
 /* TASK RECURSION LIST */
 #define NUM_OF_TASKS            (5u)
              
-typedef struct tree_node Tree;
 struct tree_node {
-    Tree * left, * right;
+    struct tree_node *left, * right;
     OS_TASK_RELEASE_TIME release_time;
     OS_TCB* p_tcb[NUM_OF_TASKS];
     CPU_INT32U entries;
 };
-  
+typedef struct tree_node Tree;
+
 Tree * DelRecTree(OS_TASK_RELEASE_TIME, Tree * );
 Tree * InsertRecTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
 Tree * GetMinRecTree(Tree *t);
@@ -2381,11 +2381,37 @@ void SplayTreeInit(void);
 #define BORDER_VALUE                                    (2147483647u)
 CPU_INT32U CounterOverflow(CPU_INT32U);
 
-/*EDF SCHEDULER LIST*/
-void EDFTreeInit (void);
+/*******************EDF SCHEDULER LIST********************/
+/*void EDFTreeInit (void);
 Tree * DelEDFTree(OS_TASK_RELEASE_TIME, Tree * );
 Tree * InsertEDFTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * GetMinEDFTree(Tree *t);
+Tree * GetMinEDFTree(Tree *t);*/
+
+/***************************BINOMIAL HEAP***********************************************/
+#define size_of_array           (10u)
+
+struct heap {
+    struct heap_node* array[size_of_array];
+    int entries;
+    struct heap_node*	min;
+};
+
+typedef struct heap HEAP;
+/*****************************************************************************************/
+struct heap_node {
+    struct heap_node* 	next;
+    struct heap_node*	child;
+    unsigned int    	degree;
+    OS_TASK_DEADLINE	value;
+    OS_TCB* ptcb;
+};
+typedef struct heap_node NODE;
+          
+void free_node(NODE*);
+NODE* find_min();
+NODE* extract_min();
+void heap_create();
+void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 
 #define EDF_SCHEDULING_DEBUG                            (0u)
 #define TASK_RECURSION_DEBUG                            (1u)

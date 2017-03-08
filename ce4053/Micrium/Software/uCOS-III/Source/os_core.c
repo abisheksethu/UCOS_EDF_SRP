@@ -209,7 +209,7 @@ void  OSInit (OS_ERR  *p_err)
     OSCfg_Init();
                                                                /* Tree Initialization */
     SplayTreeInit();
-    EDFTreeInit();
+    heap_create(); 
 }
 
 /*$PAGE*/
@@ -370,13 +370,26 @@ void  OSSched (void)
     }
 
     CPU_INT_DIS();
-    OSPrioHighRdy   = OS_PrioGetHighest();                  /* Find the highest priority ready                        */
+    OSPrioHighRdy   = OS_PrioGetHighest();  
+    
+    if (OSPrioHighRdy>3) 
+   {
+      OS_TCB* task_to_run = OSEDFSched();
+      if(!task_to_run)
+    {
+    /* Find the highest priority ready                        */
     OSTCBHighRdyPtr = OSRdyList[OSPrioHighRdy].HeadPtr;
-    if (OSTCBHighRdyPtr == OSTCBCurPtr) {                   /* Current task is still highest priority task?           */
+    }
+    else
+    {
+     OSTCBHighRdyPtr=task_to_run;
+    }
+   }
+if (OSTCBHighRdyPtr == OSTCBCurPtr) 
+    {                   /* Current task is still highest priority task?           */
         CPU_INT_EN();                                       /* Yes ... no need to context switch                      */
         return;
     }
-
 #if OS_CFG_TASK_PROFILE_EN > 0u
     OSTCBHighRdyPtr->CtxSwCtr++;                            /* Inc. # of context switches to this task                */
 #endif
