@@ -41,6 +41,7 @@ static CPU_INT32U  counter;
 extern Tree * RecursionTree;
 extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
+extern Tree * SchedulerTree;
 
 /*OVERHEAD CALCULATION*/
 extern CPU_TS StartTime;
@@ -95,7 +96,12 @@ void  OSTaskHandler (void)
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
         /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+#if BINOMIAL_DEBUG
         heap_node_create(min->p_tcb[i],abs_deadline);
+#endif
+#if EDF_DEBUG
+        SchedulerTree = InsertEDFTree(abs_deadline,SchedulerTree,min->p_tcb[i]);
+#endif
       }
       else
       {
@@ -170,11 +176,21 @@ void OSTCBStackReset(OS_TCB *p_tcb)
 ************************************************************************************************************************
 */
 OS_TCB*  OSEDFSched (void)
-{   
+{ 
+#if BINOMIAL_DEBUG
   NODE* earliest_deadline;
+#endif
+#if EDF_DEBUG
+  Tree *earliest_deadline;
+#endif
   
   /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
+#if BINOMIAL_DEBUG
   earliest_deadline=find_min();
+#endif
+#if EDF_DEBUG
+  earliest_deadline = GetMinEDFTree(SchedulerTree);
+#endif
   
   /* ----------FINDING OVERHEAD FROM ISR TO HIGHEST PRIORITY TASK ---------- */
   OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
@@ -182,7 +198,7 @@ OS_TCB*  OSEDFSched (void)
   if (earliest_deadline == NULL)
     return NULL;
   else 
-    return earliest_deadline->ptcb;      
+    return earliest_deadline->p_tcb[0];      
 }
 /*
 ************************************************************************************************************************
@@ -540,9 +556,13 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
     OS_TaskRecDelTCB(p_tcb);                                /* Initialize the TCB to default values                   */
 
     OS_CRITICAL_EXIT_NO_SCHED();
-                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
+#if BINOMIAL_DEBUG                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
     NODE* completed_task = extract_min();
     free(completed_task);
+#endif
+#if EDF_DEBUG
+    SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );
+#endif
     OSSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;

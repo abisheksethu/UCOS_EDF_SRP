@@ -209,7 +209,12 @@ void  OSInit (OS_ERR  *p_err)
     OSCfg_Init();
     /* Tree Initialization */
     SplayTreeInit();
+#if BINOMIAL_DEBUG
     heap_create(); 
+#endif
+#if EDF_DEBUG
+    EDFTreeInit();
+#endif
 }
 
 /*$PAGE*/
