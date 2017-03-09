@@ -88,6 +88,13 @@ void  OSTaskHandler (void)
       { 
         /* --------------- RESET TCB STACK -------*/
         OSTCBStackReset(min->p_tcb[i]);
+        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+#if BINOMIAL_DEBUG
+        heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskDeadline);
+#endif
+#if EDF_DEBUG
+        SchedulerTree = InsertEDFTree(min->p_tcb[i]->TaskDeadline,SchedulerTree,min->p_tcb[i]);
+#endif
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
         rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
         abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
@@ -95,13 +102,6 @@ void  OSTaskHandler (void)
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
-        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
-#if BINOMIAL_DEBUG
-        heap_node_create(min->p_tcb[i],abs_deadline);
-#endif
-#if EDF_DEBUG
-        SchedulerTree = InsertEDFTree(abs_deadline,SchedulerTree,min->p_tcb[i]);
-#endif
       }
       else
       {
@@ -195,10 +195,17 @@ OS_TCB*  OSEDFSched (void)
   /* ----------FINDING OVERHEAD FROM ISR TO HIGHEST PRIORITY TASK ---------- */
   OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
   
-  if (earliest_deadline == NULL)
+  if (earliest_deadline == NULL){
     return NULL;
-  else 
+  }
+  else {
+#if EDF_DEBUG
     return earliest_deadline->p_tcb[0];      
+#endif
+#if BINOMIAL_DEBUG    
+    return earliest_deadline->ptcb;      
+#endif
+  }
 }
 /*
 ************************************************************************************************************************
@@ -406,9 +413,8 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 
     p_tcb->StkPtr        = p_sp;                            /* Save the new top-of-stack pointer                      */
     p_tcb->StkLimitPtr   = p_stk_limit;                     /* Save the stack limit pointer                           */
-
+    counter  = 0;
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
-    counter              = 0;
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
     p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline for Job1*/
