@@ -90,10 +90,10 @@ void  OSTaskHandler (void)
         OSTCBStackReset(min->p_tcb[i]);
         /* --------------- ADD TASK TO SCHEDULING LIST -------*/
 #if BINOMIAL_DEBUG
-        heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskDeadline);
+        heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
 #endif
 #if EDF_DEBUG
-        SchedulerTree = InsertEDFTree(min->p_tcb[i]->TaskDeadline,SchedulerTree,min->p_tcb[i]);
+        SchedulerTree = InsertEDFTree(min->p_tcb[i]->TaskAbsDeadline,SchedulerTree,min->p_tcb[i]);
 #endif
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
         rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));

@@ -82,7 +82,7 @@
 #define TASK1PERIOD                    5u
 #define TASK2PERIOD                   20u
 #define TASK3PERIOD                   15u
-#define TASK4PERIOD                   35u
+#define TASK4PERIOD                   10u
 #define TASK5PERIOD                   60u
 
 /*
