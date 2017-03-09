@@ -1585,7 +1585,7 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
 
 void         OSTaskHandler              (void);
 
-void         OSTCBStackReset            (OS_TCB *p_tcb);
+void         OSTaskInsertTCB            (OS_TCB *p_tcb);
 void         OSRecTaskCreate            (OS_TCB                *p_tcb,
                                          CPU_CHAR              *p_name,
                                          OS_TASK_PTR            p_task,
@@ -2360,21 +2360,24 @@ void          OS_TickListUpdate         (void);
 *                                                 uC/OS-III DATA STRUCTUREs
 ************************************************************************************************************************
 */    
-/* TASK RECURSION LIST */
+/************************************SPLAY TREE *********************************************************/
 #define NUM_OF_TASKS            (5u)
-             
-struct tree_node {
-    struct tree_node *left, * right;
-    OS_TASK_RELEASE_TIME release_time;
-    OS_TCB* p_tcb[NUM_OF_TASKS];
-    CPU_INT32U entries;
-};
-typedef struct tree_node Tree;
 
-Tree * DelRecTree(OS_TASK_RELEASE_TIME, Tree * );
-Tree * InsertRecTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * GetMinRecTree(Tree *t);
-void SplayTreeInit(void);
+struct node
+{
+    OS_TASK_RELEASE_TIME release_time;
+    struct node* left_child;
+    struct node* right_child;
+    struct node* parent;
+    OS_TCB* tcb_pointer_array[NUM_OF_TASKS];
+    int entries;
+};
+
+typedef struct node SPLAYTREE_NODE;
+
+SPLAYTREE_NODE* create_node(OS_TASK_RELEASE_TIME);
+void insert_node(SPLAYTREE_NODE*, OS_TASK_RELEASE_TIME , OS_TCB* tcb_pointer);
+void delete_minimum();
 
 /*COUNTER OVERFLOW VARIABLES*/
 #define BORDER_BIT                                      (0x80000000)
@@ -2382,10 +2385,10 @@ void SplayTreeInit(void);
 CPU_INT32U CounterOverflow(CPU_INT32U);
 
 /*******************EDF SCHEDULER LIST********************/
-void EDFTreeInit (void);
+/*void EDFTreeInit (void);
 Tree * DelEDFTree(OS_TASK_RELEASE_TIME, Tree * );
 Tree * InsertEDFTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * GetMinEDFTree(Tree *t);
+Tree * GetMinEDFTree(Tree *t);*/
 
 /***************************BINOMIAL HEAP***********************************************/
 #define size_of_array           (10u)
@@ -2413,10 +2416,8 @@ NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 
-//Debugging
-#define BINOMIAL_DEBUG  (0u)
-#define EDF_DEBUG       (1u)
-
+#define EDF_SCHEDULING_DEBUG                            (0u)
+#define TASK_RECURSION_DEBUG                            (1u)
 /*
 ************************************************************************************************************************
 *                                                 uC/OS-III MODULE END
