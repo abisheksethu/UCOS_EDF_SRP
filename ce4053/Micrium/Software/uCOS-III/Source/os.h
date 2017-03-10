@@ -2414,8 +2414,8 @@ void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 
 //Debugging
-#define BINOMIAL_DEBUG  (0u)
-#define EDF_DEBUG       (1u)
+#define BINOMIAL_DEBUG  (1u)
+#define EDF_DEBUG       (0u)
 
 /*
 ************************************************************************************************************************

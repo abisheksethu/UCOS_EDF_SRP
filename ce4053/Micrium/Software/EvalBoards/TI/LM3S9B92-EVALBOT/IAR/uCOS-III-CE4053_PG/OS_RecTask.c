@@ -564,7 +564,7 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
     OS_CRITICAL_EXIT_NO_SCHED();
 #if BINOMIAL_DEBUG                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
     NODE* completed_task = extract_min();
-    free(completed_task);
+    free_node(completed_task);
 #endif
 #if EDF_DEBUG
     SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );

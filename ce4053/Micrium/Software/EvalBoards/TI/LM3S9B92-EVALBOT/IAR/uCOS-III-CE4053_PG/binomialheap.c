@@ -298,7 +298,8 @@ NODE* extract_min()
 void free_node(NODE* temp)
 {
   OS_ERR err1;
-  OSMemPut((OS_MEM*)&MemoryCB_heap_node, (void*)temp,(OS_ERR*)&err1);;
+  OSMemPut((OS_MEM*)&MemoryCB_heap_node, (void*)temp,(OS_ERR*)&err1);
+  return;
 }
 
 
