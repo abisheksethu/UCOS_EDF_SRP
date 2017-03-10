@@ -37,7 +37,7 @@
 *                                            GLOBAL VARIABLES
 *********************************************************************************************************
 */
-static CPU_INT32U  counter;
+CPU_INT32U  counter;
 extern Tree * RecursionTree;
 extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
@@ -89,6 +89,8 @@ void  OSTaskHandler (void)
         /* --------------- RESET TCB STACK -------*/
         OSTCBStackReset(min->p_tcb[i]);
         /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+        abs_deadline = CounterOverflow(min->p_tcb[i]->TaskAbsDeadline + (min->p_tcb[i]->TaskDeadline));
+        min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
 #if BINOMIAL_DEBUG
         heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
 #endif
@@ -96,10 +98,8 @@ void  OSTaskHandler (void)
         SchedulerTree = InsertEDFTree(min->p_tcb[i]->TaskAbsDeadline,SchedulerTree,min->p_tcb[i]);
 #endif
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
-        rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
-        abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
+        rel_time = CounterOverflow(min->p_tcb[i]->TaskRelPeriod + (min->p_tcb[i]->TaskPeriod));
         min->p_tcb[i]->TaskRelPeriod = rel_time;
-        min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
       }
@@ -413,11 +413,11 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 
     p_tcb->StkPtr        = p_sp;                            /* Save the new top-of-stack pointer                      */
     p_tcb->StkLimitPtr   = p_stk_limit;                     /* Save the stack limit pointer                           */
-    counter  = 0;
+    //counter  = 0;
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
-    p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline for Job1*/
+    p_tcb->TaskDeadline  = 0;                 /* Save Deadline for Job1*/
     p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
     
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
