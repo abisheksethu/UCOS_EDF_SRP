@@ -43,7 +43,7 @@
 *********************************************************************************************************
 */
 
-#define  APP_TASK_START_PRIO                        	5u
+#define  APP_TASK_START_PRIO                        	6u
 
 #define  APP_TASK_REPEAT_ONE_PRIO                       2u
 #define  APP_TASK_REPEAT_TWO_PRIO                       3u
@@ -52,11 +52,11 @@
 #define  APP_TASK_REPEAT_FIVE_PRIO                      6u
 
 
-#define  APP_TASK_ONE_PRIO                              6u
-#define  APP_TASK_TWO_PRIO                              7u
-#define  APP_TASK_THREE_PRIO                            8u
-#define  APP_TASK_FOUR_PRIO                             9u
-#define  APP_TASK_FIVE_PRIO                             10u
+#define  APP_TASK_ONE_PRIO                              7u
+#define  APP_TASK_TWO_PRIO                              8u
+#define  APP_TASK_THREE_PRIO                            9u
+#define  APP_TASK_FOUR_PRIO                             10u
+#define  APP_TASK_FIVE_PRIO                             11u
 
 
 /*

@@ -1175,6 +1175,7 @@ OS_EXT            OS_OBJ_QTY             OSTaskQty;                   /* Number 
                                                                       /* TICK TASK ---------------------------------- */
 OS_EXT            OS_TICK                OSTickCtr;                   /* Counts the #ticks since startup or last set  */
 OS_EXT            OS_TCB                 OSTickTaskTCB;
+OS_EXT            OS_TCB                 OSTaskHandlerTCB;
 OS_EXT            CPU_TS                 OSTickTaskTimeMax;
 
 
@@ -1242,6 +1243,11 @@ extern  CPU_INT32U    const OSCfg_TickTaskStkSizeRAM;
 extern  OS_OBJ_QTY    const OSCfg_TickWheelSize;
 extern  CPU_INT32U    const OSCfg_TickWheelSizeRAM;
 
+extern OS_PRIO        const  OSCfg_TaskHandlerPrio;
+extern CPU_STK      * const  OSCfg_TaskHandlerStkBasePtr;
+extern CPU_STK_SIZE   const  OSCfg_TaskHandlerStkLimit;
+extern CPU_STK_SIZE   const  OSCfg_TaskHandlerStkSize;
+
 extern  OS_PRIO       const OSCfg_TmrTaskPrio;
 extern  OS_RATE_HZ    const OSCfg_TmrTaskRate_Hz;
 extern  CPU_STK     * const OSCfg_TmrTaskStkBasePtr;
@@ -1270,6 +1276,7 @@ extern  CPU_STK        OSCfg_StatTaskStk[];
 #endif
 
 extern  CPU_STK        OSCfg_TickTaskStk[];
+extern  CPU_STK        OSCfg_TaskHandlerStk[];
 extern  OS_TICK_SPOKE  OSCfg_TickWheel[];
 
 #if (OS_CFG_TMR_EN > 0u)
@@ -1583,7 +1590,8 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
                                          OS_ERR                *p_err);
 #endif
 
-void         OSTaskHandler              (void);
+void         OSTaskHandler              (void                  *p_arg);
+void         OSTaskHandlerUpdate        (void);
 
 void         OSTCBStackReset            (OS_TCB *p_tcb);
 void         OSRecTaskCreate            (OS_TCB                *p_tcb,
@@ -1876,6 +1884,7 @@ void          OS_StatTaskInit           (OS_ERR                *p_err);
 
 void          OS_TickTask               (void                  *p_arg);
 void          OS_TickTaskInit           (OS_ERR                *p_err);
+void          OS_TaskLoaderInit         (OS_ERR                *p_err);
 
 /*$PAGE*/
 /*

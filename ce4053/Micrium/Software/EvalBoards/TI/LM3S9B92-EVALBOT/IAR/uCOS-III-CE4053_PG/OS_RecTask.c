@@ -42,11 +42,7 @@ extern Tree * RecursionTree;
 extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
 extern Tree * SchedulerTree;
-
-/*OVERHEAD CALCULATION*/
-extern CPU_TS StartTime;
-extern CPU_TS StartTime2;
-CPU_TS OverheadValue;
+CPU_TS StartTime, StartTime2, OverheadValue2;
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -54,10 +50,89 @@ CPU_TS OverheadValue;
 */
 
 /*
-*********************************************************************************************************
-*                                          CREATE RECURSIVE TASKs
+************************************************************************************************************************
+*                                                      OS TASK HANDLER TASK
 *
-* Description : This function is called by Timer0A interrupt handler. Based on the task set registered 
+* Description: This task is internal to uC/OS-III and is triggered by the TIMER0A interrupt.
+*
+* Arguments  : p_arg     is an argument passed to the task when the task is created (unused).
+*
+* Returns    : none
+*
+* Note(s)    : This function is INTERNAL to uC/OS-III and your application should not call it.
+************************************************************************************************************************
+*/
+
+void  OSTaskHandler (void *p_arg)
+{
+    OS_ERR  err;
+    CPU_TS  ts;
+
+
+    p_arg = p_arg;                                          /* Prevent compiler warning                               */
+
+    while (DEF_ON) {
+        (void)OSTaskSemPend((OS_TICK  )0,
+                            (OS_OPT   )OS_OPT_PEND_BLOCKING,
+                            (CPU_TS  *)&ts,
+                            (OS_ERR  *)&err);               /* Wait for signal from tick interrupt                    */
+        if (err == OS_ERR_NONE) {
+            if (OSRunning == OS_STATE_OS_RUNNING) {
+                OSTaskHandlerUpdate();                        /* Update all tasks waiting for time                      */
+            }
+        }
+    }
+}
+
+/*$PAGE*/
+/*
+************************************************************************************************************************
+*                                                 INITIALIZE OSTaskLoader TASK
+*
+* Description: This function is called by OSInit() to create the OSTaskLoader task.
+*
+* Arguments  : p_err   is a pointer to a variable that will hold the value of an error code:
+*
+*                          OS_ERR_TICK_STK_INVALID   if the pointer to the tick task stack is a NULL pointer
+*                          OS_ERR_TICK_STK_SIZE      indicates that the specified stack size
+*                          OS_ERR_PRIO_INVALID       if the priority you specified in the configuration is invalid
+*                                                      (There could be only one task at the Idle Task priority)
+*                                                      (Maybe the priority you specified is higher than OS_CFG_PRIO_MAX-1
+*                          OS_ERR_??                 other error code returned by OSTaskCreate()
+*
+* Returns    : none
+*
+* Note(s)    : This function is INTERNAL to uC/OS-III and your application should not call it.
+************************************************************************************************************************
+*/
+void OS_TaskLoaderInit(OS_ERR  *p_err){
+  
+  #ifdef OS_SAFETY_CRITICAL
+    if (p_err == (OS_ERR *)0) {
+        OS_SAFETY_CRITICAL_EXCEPTION();
+        return;
+    }
+  #endif
+    
+  OSTaskCreate((OS_TCB     *)&OSTaskHandlerTCB,
+                 (CPU_CHAR   *)((void *)"uC/OS-III OS Recursive Task Handler"),
+                 (OS_TASK_PTR )OSTaskHandler,
+                 (void       *)0,
+                 (OS_PRIO     )OSCfg_TaskHandlerPrio,
+                 (CPU_STK    *)OSCfg_TaskHandlerStkBasePtr,
+                 (CPU_STK_SIZE)OSCfg_TaskHandlerStkLimit,
+                 (CPU_STK_SIZE)OSCfg_TaskHandlerStkSize,
+                 (OS_MSG_QTY  )0u,
+                 (OS_TICK     )0u,
+                 (void       *)0,
+                 (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+                 (OS_ERR     *)p_err);
+}
+/*
+*********************************************************************************************************
+*                                          CREATE RECURSIVE TASK AND SCHEDULE
+*
+* Description : This task is triggered by the TIMER0A interrupt. Based on the task set registered 
 *               in the datastructure, it will create a new task with respective to its release time
 *
 * Arguments   : none
@@ -69,12 +144,15 @@ CPU_TS OverheadValue;
 *********************************************************************************************************
 */
 
-void  OSTaskHandler (void)
+void  OSTaskHandlerUpdate ()
 { 
   CPU_INT32U rel_time = 0;
   CPU_INT32U entry = 0;
   CPU_INT32U abs_deadline = 0;
   Tree *min;
+  
+  StartTime = OS_TS_GET();
+  StartTime2 = OS_TS_GET(); 
   
   /*--------------- FIND MINIMUM TASK RELEASE TIME -------*/    
   min = GetMinRecTree(RecursionTree);
@@ -116,6 +194,8 @@ void  OSTaskHandler (void)
   }
   /* Update the local counter and boundary check */
   counter = CounterOverflow((counter+1));
+  OverheadValue2 = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
+  return ;
 }
 /*
 *********************************************************************************************************
@@ -191,9 +271,6 @@ OS_TCB*  OSEDFSched (void)
 #if EDF_DEBUG
   earliest_deadline = GetMinEDFTree(SchedulerTree);
 #endif
-  
-  /* ----------FINDING OVERHEAD FROM ISR TO HIGHEST PRIORITY TASK ---------- */
-  OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
   
   if (earliest_deadline == NULL){
     return NULL;
