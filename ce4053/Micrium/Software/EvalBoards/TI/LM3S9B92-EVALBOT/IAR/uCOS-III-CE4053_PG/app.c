@@ -179,7 +179,7 @@ static  void  AppTaskStart (void  *p_arg)
     counter  = 0;
     
     /* Delete AppTaskStart */
-    OSTaskAppStartDel((OS_TCB *)0, &err);
+    OSTaskAppStartDel((OS_TCB *)&AppTaskStartTCB, &err);
     
 }
 /*
@@ -217,7 +217,7 @@ void  AppTaskOne (void  *p_arg)
     
    BSP_LED_Off(2u);
    
-   OSRecTaskDel((OS_TCB *)0, &err); 
+   OSRecTaskDel((OS_TCB *)&AppTaskOneTCB, &err); 
 
 }
 void  AppTaskTwo (void  *p_arg)
@@ -240,7 +240,7 @@ void  AppTaskTwo (void  *p_arg)
     
    BSP_LED_Off(1u);
    
-   OSRecTaskDel((OS_TCB *)0, &err);
+   OSRecTaskDel((OS_TCB *)&AppTaskTwoTCB, &err);
 }
 
 void  AppTaskThree (void  *p_arg)
@@ -263,7 +263,7 @@ void  AppTaskThree (void  *p_arg)
     
    BSP_LED_Off(0u);
    
-   OSRecTaskDel((OS_TCB *)0, &err);
+   OSRecTaskDel((OS_TCB *)&AppTaskThreeTCB, &err);
 }
 
 void  AppTaskFour (void  *p_arg)
@@ -280,7 +280,7 @@ void  AppTaskFour (void  *p_arg)
       }
      }
     
-    OSRecTaskDel((OS_TCB *)0, &err);   
+    OSRecTaskDel((OS_TCB *)&AppTaskFourTCB, &err);   
 }
 
 void  AppTaskFive (void  *p_arg)
@@ -297,7 +297,7 @@ void  AppTaskFive (void  *p_arg)
       }
      }
   
-    OSRecTaskDel((OS_TCB *)0, &err);   
+    OSRecTaskDel((OS_TCB *)&AppTaskFiveTCB, &err);   
 }
 
 static  void  AppRobotMotorDriveSensorEnable ()
