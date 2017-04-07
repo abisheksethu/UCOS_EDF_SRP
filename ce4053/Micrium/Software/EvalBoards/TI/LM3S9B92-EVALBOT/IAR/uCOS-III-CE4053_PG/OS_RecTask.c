@@ -43,9 +43,11 @@ extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
 extern Tree * SchedulerTree;
 
-/*OVERHEAD CALCULATION*/
+/*OVERHEAD CALCULATION
 extern CPU_TS StartTime;
-extern CPU_TS StartTime2;
+extern CPU_TS StartTime2;*/
+
+extern CPU_INT08U system_ceiling;
 CPU_TS OverheadValue;
 /*
 *********************************************************************************************************
@@ -84,39 +86,61 @@ void  OSTaskHandler (void)
     entry = min->entries;
     for(int i=0; (i < entry && i < NUM_OF_TASKS); i++)
     {
-      if(min->p_tcb[i]!= NULL)
-      { 
-        /* --------------- RESET TCB STACK -------*/
-        OSTCBStackReset(min->p_tcb[i]);
-        /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
-        rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
-        abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
-        min->p_tcb[i]->TaskRelPeriod = rel_time;
-        min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
-        /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
-        RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
-        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
-#if BINOMIAL_DEBUG
-        heap_node_create(min->p_tcb[i],abs_deadline);
-#endif
-#if EDF_DEBUG
-        SchedulerTree = InsertEDFTree(abs_deadline,SchedulerTree,min->p_tcb[i]);
-#endif
-      }
-      else
+        if(min->p_tcb[i]!= NULL)
+        { 
+          /*---------------------check if the task's preemption threshold is greater than the system ceiling-----------*/
+          
+              if(min->p_tcb[i]->TaskPreemptionThreshold < system_ceiling)
+              {
+                /* --------------- ADD TASK TO BINOMIAL HEAP -------*/
+                #if BINOMIAL_DEBUG
+                heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
+                #endif
+                /* --------------- RESET TCB STACK -------*/
+                OSTCBStackReset(min->p_tcb[i]);
+                /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
+                rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
+                abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
+                min->p_tcb[i]->TaskRelPeriod = rel_time;
+                min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
+                /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
+                RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);  
+                /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
+                RecursionTree = DelRecTree(min->release_time, RecursionTree);
+                
+              }
+              else
+              {
+                /* --------------- ADD TASK TO 2-3-4 (BLOCKED TASKS) TREE -------*/
+                #if BINOMIAL_DEBUG
+                avl_root2 = insert2(avl_root2, min->p_tcb[i] , min->p_tcb[i]->TaskPreemptionThreshold);
+                #endif
+                /* --------------- RESET TCB STACK -------*/
+                OSTCBStackReset(min->p_tcb[i]);
+                /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
+                rel_time = CounterOverflow(counter + (min->p_tcb[i]->TaskPeriod));
+                abs_deadline = CounterOverflow(counter + (min->p_tcb[i]->TaskDeadline));
+                min->p_tcb[i]->TaskRelPeriod = rel_time;
+                min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
+                /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
+                RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);  
+                /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
+                RecursionTree = DelRecTree(min->release_time, RecursionTree);
+                /* add to the blocked tree */
+              }
+        }
+    }
+  }
+    //OSSched();   //is this the correct position to inlcude OSSched() ???
+    else
       {
         /* Update the local counter and boundary check */
         counter = CounterOverflow((counter+1));
         return ;
       }
-    }
-    /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
-    RecursionTree = DelRecTree(min->release_time, RecursionTree);
     OSSched();
   }
-  /* Update the local counter and boundary check */
-  counter = CounterOverflow((counter+1));
-}
+ 
 /*
 *********************************************************************************************************
 *                                          RESET STACK FOR NEW TASK
@@ -188,12 +212,12 @@ OS_TCB*  OSEDFSched (void)
 #if BINOMIAL_DEBUG
   earliest_deadline=find_min();
 #endif
-#if EDF_DEBUG
-  earliest_deadline = GetMinEDFTree(SchedulerTree);
-#endif
+//#if EDF_DEBUG
+  //earliest_deadline = GetMinEDFTree(SchedulerTree);
+//#endif
   
   /* ----------FINDING OVERHEAD FROM ISR TO HIGHEST PRIORITY TASK ---------- */
-  OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
+  //OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
   
   if (earliest_deadline == NULL)
     return NULL;
@@ -296,7 +320,8 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
                     OS_OPT         opt,
                     OS_ERR        *p_err,
                     OS_TASK_PERIOD   p_task_period,
-                    OS_TASK_DEADLINE       p_task_deadline)
+                    OS_TASK_DEADLINE       p_task_deadline,
+                    CPU_INT08U p_preemption_threshold)
 {
     CPU_STK_SIZE   i;
 #if OS_CFG_TASK_REG_TBL_SIZE > 0u
@@ -413,6 +438,7 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
     p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline for Job1*/
     p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
+    p_tcb->TaskPreemptionThreshold = p_preemption_threshold; /* Save the preemption threshold of the task*/
     
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
     if (time_quanta == (OS_TICK)0) {
@@ -560,9 +586,9 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
     NODE* completed_task = extract_min();
     free(completed_task);
 #endif
-#if EDF_DEBUG
-    SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );
-#endif
+//#if EDF_DEBUG
+    //SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );
+//#endif
     OSSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;

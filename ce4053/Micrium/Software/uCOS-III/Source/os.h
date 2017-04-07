@@ -833,6 +833,7 @@ struct  os_mutex {
     OS_PRIO              OwnerOriginalPrio;
     OS_NESTING_CTR       OwnerNestingCtr;                   /* Mutex is available when the counter is 0               */
     CPU_TS               TS;
+    CPU_INT08U           MutexResourceCeiling;
 };
 
 /*$PAGE*/
@@ -988,6 +989,7 @@ struct os_tcb {
    OS_TASK_RELEASE_TIME   TaskRelPeriod;
    OS_TASK_DEADLINE       TaskDeadline;
    OS_TASK_DEADLINE       TaskAbsDeadline;
+   CPU_INT08U             TaskPreemptionThreshold;  //added preemption threshold for every task
 #endif
 };
 
@@ -1391,6 +1393,7 @@ void          OS_MemInit                (OS_ERR                *p_err);
 
 void          OSMutexCreate             (OS_MUTEX              *p_mutex,
                                          CPU_CHAR              *p_name,
+                                         CPU_INT08U   p_mutex_ceiling,
                                          OS_ERR                *p_err);
 
 #if OS_CFG_MUTEX_DEL_EN > 0u
@@ -1600,7 +1603,8 @@ void         OSRecTaskCreate            (OS_TCB                *p_tcb,
                                          OS_OPT                 opt,
                                          OS_ERR                *p_err,
                                          OS_TASK_PERIOD   TaskPeriod,
-                                         OS_TASK_DEADLINE       TaskDeadline);
+                                         OS_TASK_DEADLINE       TaskDeadline,
+                                         CPU_INT08U p_preemption_threshold);
 
 void          OSRecTaskDel               (OS_TCB               *p_tcb,
                                          OS_ERR                *p_err);
@@ -2360,7 +2364,7 @@ void          OS_TickListUpdate         (void);
 *                                                 uC/OS-III DATA STRUCTUREs
 ************************************************************************************************************************
 */    
-/* TASK RECURSION LIST */
+/************************************************* TASK RECURSION SPLAY TREE *************************************************/
 #define NUM_OF_TASKS            (5u)
              
 struct tree_node {
@@ -2381,13 +2385,7 @@ void SplayTreeInit(void);
 #define BORDER_VALUE                                    (2147483647u)
 CPU_INT32U CounterOverflow(CPU_INT32U);
 
-/*******************EDF SCHEDULER LIST********************/
-void EDFTreeInit (void);
-Tree * DelEDFTree(OS_TASK_RELEASE_TIME, Tree * );
-Tree * InsertEDFTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * GetMinEDFTree(Tree *t);
-
-/***************************BINOMIAL HEAP***********************************************/
+/***************************BINOMIAL HEAP*******************************************************************************/
 #define size_of_array           (10u)
 
 struct heap {
@@ -2416,6 +2414,39 @@ void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 //Debugging
 #define BINOMIAL_DEBUG  (0u)
 #define EDF_DEBUG       (1u)
+
+/******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
+struct AVL_Node
+{
+    OS_MUTEX* mutex_pointer;
+    CPU_INT08U resource_ceiling;
+    struct AVL_Node *left;
+    struct AVL_Node *right;
+    int height;
+};
+
+typedef struct AVL_Node AVL_NODE;
+
+AVL_NODE* insert(AVL_NODE*,  OS_MUTEX*, CPU_INT08U);
+AVL_NODE * minValueNode(AVL_NODE*);
+AVL_NODE* deleteNode(AVL_NODE*, CPU_INT08U);
+
+
+/******************************************************************* AVL TREE FOR BLOCKED TASKS****************************************/
+struct AVL_Node2
+{
+    OS_TCB* tcb_pointer;
+    CPU_INT08U preemption_threshold;
+    struct AVL_Node2 *left;
+    struct AVL_Node2 *right;
+    int height2;
+};
+
+typedef struct AVL_Node2 AVL_NODE2;
+
+AVL_NODE2* insert2(AVL_NODE2*,  OS_TCB*, CPU_INT08U);
+AVL_NODE2 * minValueNode2(AVL_NODE2*);
+AVL_NODE2* deleteNode2(AVL_NODE2*, CPU_INT08U);
 
 /*
 ************************************************************************************************************************

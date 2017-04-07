@@ -31,6 +31,13 @@
 */
 
 #include <os.h>
+extern AVL_NODE* avl_root;
+extern AVL_NODE* avl_min;
+
+extern AVL_NODE2* avl_root2;
+extern AVL_NODE2* avl_min2;
+
+CPU_INT08U system_ceiling;
 
 #ifdef VSC_INCLUDE_SOURCE_FILE_NAMES
 const  CPU_CHAR  *os_mutex__c = "$Id: $";
@@ -65,6 +72,7 @@ const  CPU_CHAR  *os_mutex__c = "$Id: $";
 
 void  OSMutexCreate (OS_MUTEX    *p_mutex,
                      CPU_CHAR    *p_name,
+                     CPU_INT08U   p_mutex_ceiling,
                      OS_ERR      *p_err)
 {
     CPU_SR_ALLOC();
@@ -105,6 +113,7 @@ void  OSMutexCreate (OS_MUTEX    *p_mutex,
     p_mutex->OwnerTCBPtr       = (OS_TCB       *)0;
     p_mutex->OwnerNestingCtr   = (OS_NESTING_CTR)0;         /* Mutex is available                                     */
     p_mutex->TS                = (CPU_TS        )0;
+    p_mutex->MutexResourceCeiling = p_mutex_ceiling;
     p_mutex->OwnerOriginalPrio =  OS_CFG_PRIO_MAX;
     OS_PendListInit(&p_mutex->PendList);                    /* Initialize the waiting list                            */
 
@@ -382,13 +391,18 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
     CPU_CRITICAL_ENTER();
     if (p_mutex->OwnerNestingCtr == (OS_NESTING_CTR)0) {    /* Resource available?                                    */
         p_mutex->OwnerTCBPtr       =  OSTCBCurPtr;          /* Yes, caller may proceed                                */
-        p_mutex->OwnerOriginalPrio =  OSTCBCurPtr->Prio;
+       //p_mutex->OwnerOriginalPrio =  OSTCBCurPtr->Prio; 
         p_mutex->OwnerNestingCtr   = (OS_NESTING_CTR)1;
         if (p_ts != (CPU_TS *)0) {
            *p_ts                   = p_mutex->TS;
         }
         CPU_CRITICAL_EXIT();
         *p_err                     =  OS_ERR_NONE;
+        
+        
+        avl_root = insert(avl_root, p_mutex, p_mutex->MutexResourceCeiling); //insert resouce cieling here
+        system_ceiling  =  avl_min->resource_ceiling;
+        /*insert the mutext along with the RC of that mutext into the AVL  Tree*/
         return;
     }
 
@@ -406,87 +420,36 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
         CPU_CRITICAL_EXIT();
         *p_err = OS_ERR_PEND_WOULD_BLOCK;                   /* No                                                     */
         return;
-    } else {
-        if (OSSchedLockNestingCtr > (OS_NESTING_CTR)0) {    /* Can't pend when the scheduler is locked                */
+    } 
+    else {
+        if (OSSchedLockNestingCtr > (OS_NESTING_CTR)0)
+        {    /* Can't pend when the scheduler is locked */
             CPU_CRITICAL_EXIT();
             *p_err = OS_ERR_SCHED_LOCKED;
             return;
         }
     }
 
+    
     OS_CRITICAL_ENTER_CPU_CRITICAL_EXIT();                  /* Lock the scheduler/re-enable interrupts                */
     p_tcb = p_mutex->OwnerTCBPtr;                           /* Point to the TCB of the Mutex owner                    */
-    if (p_tcb->Prio > OSTCBCurPtr->Prio) {                  /* See if mutex owner has a lower priority than current   */
-        switch (p_tcb->TaskState) {
-            case OS_TASK_STATE_RDY:
-                 OS_RdyListRemove(p_tcb);                   /* Remove from ready list at current priority             */
-                 p_tcb->Prio = OSTCBCurPtr->Prio;           /* Raise owner's priority                                 */
-                 OS_PrioInsert(p_tcb->Prio);
-                 OS_RdyListInsertHead(p_tcb);               /* Insert in ready list at new priority                   */
-                 break;
-
-            case OS_TASK_STATE_DLY:
-            case OS_TASK_STATE_DLY_SUSPENDED:
-            case OS_TASK_STATE_SUSPENDED:
-                 p_tcb->Prio = OSTCBCurPtr->Prio;           /* Only need to raise the owner's priority                */
-                 break;
-
-            case OS_TASK_STATE_PEND:                        /* Change the position of the task in the wait list       */
-            case OS_TASK_STATE_PEND_TIMEOUT:
-            case OS_TASK_STATE_PEND_SUSPENDED:
-            case OS_TASK_STATE_PEND_TIMEOUT_SUSPENDED:
-                 OS_PendListChangePrio(p_tcb,
-                                       OSTCBCurPtr->Prio);
-                 break;
-
-            default:
-                 OS_CRITICAL_EXIT();
-                 *p_err = OS_ERR_STATE_INVALID;
-                 return;
-        }
-    }
-
-    OS_Pend(&pend_data,                                     /* Block task pending on Mutex                            */
-            (OS_PEND_OBJ *)((void *)p_mutex),
-             OS_TASK_PEND_ON_MUTEX,
-             timeout);
-
-    OS_CRITICAL_EXIT_NO_SCHED();
-
-    OSSched();                                              /* Find the next highest priority task ready to run       */
-
-    CPU_CRITICAL_ENTER();
-    switch (OSTCBCurPtr->PendStatus) {
-        case OS_STATUS_PEND_OK:                             /* We got the mutex                                       */
-             if (p_ts != (CPU_TS *)0) {
-                *p_ts  = OSTCBCurPtr->TS;
-             }
-             *p_err = OS_ERR_NONE;
-             break;
-
-        case OS_STATUS_PEND_ABORT:                          /* Indicate that we aborted                               */
-             if (p_ts != (CPU_TS *)0) {
-                *p_ts  = OSTCBCurPtr->TS;
-             }
-             *p_err = OS_ERR_PEND_ABORT;
-             break;
-
+    switch(timeout)
+    {
         case OS_STATUS_PEND_TIMEOUT:                        /* Indicate that we didn't get mutex within timeout       */
-             if (p_ts != (CPU_TS *)0) {
+             if (p_ts != (CPU_TS *)0) 
                 *p_ts  = (CPU_TS  )0;
-             }
              *p_err = OS_ERR_TIMEOUT;
              break;
 
         case OS_STATUS_PEND_DEL:                            /* Indicate that object pended on has been deleted        */
              if (p_ts != (CPU_TS *)0) {
                 *p_ts  = OSTCBCurPtr->TS;
-             }
+            }
              *p_err = OS_ERR_OBJ_DEL;
              break;
 
         default:
-             *p_err = OS_ERR_STATUS_INVALID;
+            *p_err = OS_ERR_STATUS_INVALID;
              break;
     }
     CPU_CRITICAL_EXIT();
@@ -689,27 +652,39 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
         return;
     }
 
-    p_pend_list = &p_mutex->PendList;
-    if (p_pend_list->NbrEntries == (OS_OBJ_QTY)0) {         /* Any task waiting on mutex?                             */
-        p_mutex->OwnerTCBPtr     = (OS_TCB       *)0;       /* No                                                     */
+    //p_pend_list = &p_mutex->PendList;
+    //if (p_pend_list->NbrEntries == (OS_OBJ_QTY)0) {         /* Any task waiting on mutex?                             */
         p_mutex->OwnerNestingCtr = (OS_NESTING_CTR)0;
-        OS_CRITICAL_EXIT();
         *p_err = OS_ERR_NONE;
-        return;
-    }
+        
+        //delete the mutex from the avl tree
+        avl_root = deleteNode(avl_root, p_mutex->MutexResourceCeiling);
+        system_ceiling = (avl_min)->resource_ceiling ;
+        
+        //unblock tasks from blocked list
+        while(avl_min2->preemption_threshold < system_ceiling)
+        {
+          heap_node_create(p_mutex->OwnerTCBPtr,p_mutex->OwnerTCBPtr->TaskAbsDeadline);  
+          avl_root2 = deleteNode2(avl_root2, avl_min2->preemption_threshold);
+        }
+        p_mutex->OwnerTCBPtr     = (OS_TCB       *)0;
+        OS_CRITICAL_EXIT();
+        
+        //return;
+   // }
                                                             /* Yes                                                    */
-    if (OSTCBCurPtr->Prio != p_mutex->OwnerOriginalPrio) {
-        OS_RdyListRemove(OSTCBCurPtr);
-        OSTCBCurPtr->Prio = p_mutex->OwnerOriginalPrio;     /* Lower owner's priority back to its original one        */
-        OS_PrioInsert(OSTCBCurPtr->Prio);
-        OS_RdyListInsertTail(OSTCBCurPtr);                  /* Insert owner in ready list at new priority             */
-        OSPrioCur         = OSTCBCurPtr->Prio;
-    }
+    //if (OSTCBCurPtr->Prio != p_mutex->OwnerOriginalPrio) {
+        //OS_RdyListRemove(OSTCBCurPtr);
+        //OSTCBCurPtr->Prio = p_mutex->OwnerOriginalPrio;     /* Lower owner's priority back to its original one        */
+        //OS_PrioInsert(OSTCBCurPtr->Prio);
+        //OS_RdyListInsertTail(OSTCBCurPtr);                  /* Insert owner in ready list at new priority             */
+        //OSPrioCur         = OSTCBCurPtr->Prio;
+  //  }
                                                             /* Get TCB from head of pend list                         */
-    p_tcb                      = p_pend_list->HeadPtr->TCBPtr;
-    p_mutex->OwnerTCBPtr       = p_tcb;                     /* Give mutex to new owner                                */
-    p_mutex->OwnerOriginalPrio = p_tcb->Prio;
-    p_mutex->OwnerNestingCtr   = (OS_NESTING_CTR)1;
+    //p_tcb                      = p_pend_list->HeadPtr->TCBPtr;
+    //p_mutex->OwnerTCBPtr       = p_tcb;                     /* Give mutex to new owner                                */
+    //p_mutex->OwnerOriginalPrio = p_tcb->Prio;
+    //p_mutex->OwnerNestingCtr   = (OS_NESTING_CTR)1;
                                                             /* Post to mutex                                          */
     OS_Post((OS_PEND_OBJ *)((void *)p_mutex),
             (OS_TCB      *)p_tcb,
@@ -719,9 +694,10 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
 
     OS_CRITICAL_EXIT_NO_SCHED();
 
-    if ((opt & OS_OPT_POST_NO_SCHED) == (OS_OPT)0) {
+    //if ((opt & OS_OPT_POST_NO_SCHED) == (OS_OPT)0)
+    //{
         OSSched();                                          /* Run the scheduler                                      */
-    }
+   // }
 
     *p_err = OS_ERR_NONE;
 }

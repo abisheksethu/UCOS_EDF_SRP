@@ -26,6 +26,9 @@
 #ifndef  __APP_CFG_H__
 #define  __APP_CFG_H__
 
+#define  R1Ceil                                         0u  //not used by any task
+#define  R2Ceil                                         1u  //used by task2 and task3
+#define  R3Ceil                                         1u
 
 /*
 *********************************************************************************************************
@@ -43,22 +46,16 @@
 *********************************************************************************************************
 */
 
+#define  APP_TASK_START_PRIO                        	1u
+
+#define  APP_TASK_ONE_PRIO                              11u
+#define  APP_TASK_TWO_PRIO                              12u
+#define  APP_TASK_THREE_PRIO                            13u
 #define  APP_TASK_START_PRIO                        	5u
 
-#define  APP_TASK_REPEAT_ONE_PRIO                       2u
-#define  APP_TASK_REPEAT_TWO_PRIO                       3u
-#define  APP_TASK_REPEAT_THREE_PRIO                     4u
-#define  APP_TASK_REPEAT_FOUR_PRIO                      5u
-#define  APP_TASK_REPEAT_FIVE_PRIO                      6u
-
-
-#define  APP_TASK_ONE_PRIO                              6u
-#define  APP_TASK_TWO_PRIO                              7u
-#define  APP_TASK_THREE_PRIO                            8u
-#define  APP_TASK_FOUR_PRIO                             9u
-#define  APP_TASK_FIVE_PRIO                             10u
-
-
+#define PREEMPTION_LEVEL_TASK1        1u         //highest preemption level
+#define PREEMPTION_LEVEL_TASK2        1u         //same preemption level as of task 1 because of same deadline
+#define PREEMPTION_LEVEL_TASK3        2u         //lower preemption level
 /*
 *********************************************************************************************************
 *                                            TASK STACK SIZES
@@ -70,8 +67,7 @@
 #define  APP_TASK_ONE_STK_SIZE                      128u
 #define  APP_TASK_TWO_STK_SIZE                      128u
 #define  APP_TASK_THREE_STK_SIZE                    128u
-#define  APP_TASK_FOUR_STK_SIZE                     128u
-#define  APP_TASK_FIVE_STK_SIZE                     128u
+
 
 /*
 *********************************************************************************************************
@@ -80,10 +76,8 @@
 */
 
 #define TASK1PERIOD                    5u
-#define TASK2PERIOD                   20u
-#define TASK3PERIOD                   15u
-#define TASK4PERIOD                   35u
-#define TASK5PERIOD                   60u
+#define TASK2PERIOD                    5u
+#define TASK3PERIOD                   10u
 
 /*
 *********************************************************************************************************
