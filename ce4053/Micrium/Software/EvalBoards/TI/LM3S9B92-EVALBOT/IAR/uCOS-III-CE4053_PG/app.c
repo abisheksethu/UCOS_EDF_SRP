@@ -44,8 +44,8 @@
 
 #define ONESECONDTICK             7000000
 
-#define WORKLOAD1                     3
-#define WORKLOAD2                     2
+#define WORKLOAD1                     1
+#define WORKLOAD2                     4
 
 #define TIMERDIV                      (BSP_CPUClkFreq() / (CPU_INT32U)OSCfg_TickRate_Hz)
 
@@ -81,7 +81,7 @@ CPU_INT32U      iMove   = 10;
 CPU_INT32U      measure=0;
 
 extern CPU_INT32U  counter;
-
+CPU_TS ExecutionTime1StartTime, ExecutionTime1StartTime2, ExecutionTime2;
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -171,9 +171,9 @@ static  void  AppTaskStart (void  *p_arg)
     /*Release the first task set - OSRecTask() - Insert all recursive tasks into list and delete task accordingly*/ 
     OSRecTaskCreate((OS_TCB     *)&AppTaskOneTCB, (CPU_CHAR   *)"leftLEDBlink", (OS_TASK_PTR ) AppTaskOne, (void       *) 0, (OS_PRIO     ) APP_TASK_ONE_PRIO, (CPU_STK    *)&AppTaskOneStk[0], (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *)(CPU_INT32U) 1, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK1PERIOD, (OS_TASK_DEADLINE)TASK1PERIOD);
     OSRecTaskCreate((OS_TCB     *)&AppTaskTwoTCB, (CPU_CHAR   *)"rightLEDBlink", (OS_TASK_PTR ) AppTaskTwo, (void       *) 0, (OS_PRIO     ) APP_TASK_TWO_PRIO, (CPU_STK    *)&AppTaskTwoStk[0], (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK2PERIOD, (OS_TASK_DEADLINE)TASK2PERIOD);
-    OSRecTaskCreate((OS_TCB     *)&AppTaskThreeTCB, (CPU_CHAR   *)"LEDBlink", (OS_TASK_PTR ) AppTaskThree, (void       *) 0, (OS_PRIO     ) APP_TASK_THREE_PRIO, (CPU_STK    *)&AppTaskThreeStk[0], (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK3PERIOD, (OS_TASK_DEADLINE)TASK3PERIOD);
-    OSRecTaskCreate((OS_TCB     *)&AppTaskFourTCB, (CPU_CHAR   *)"moveForward", (OS_TASK_PTR ) AppTaskFour, (void       *) 0, (OS_PRIO     ) APP_TASK_FOUR_PRIO, (CPU_STK    *)&AppTaskFourStk[0], (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK4PERIOD, (OS_TASK_DEADLINE)TASK4PERIOD);
-    OSRecTaskCreate((OS_TCB     *)&AppTaskFiveTCB, (CPU_CHAR   *)"moveBackward", (OS_TASK_PTR ) AppTaskFive, (void       *) 0, (OS_PRIO     ) APP_TASK_FIVE_PRIO, (CPU_STK    *)&AppTaskFiveStk[0], (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK5PERIOD, (OS_TASK_DEADLINE)TASK5PERIOD);
+    //OSRecTaskCreate((OS_TCB     *)&AppTaskThreeTCB, (CPU_CHAR   *)"LEDBlink", (OS_TASK_PTR ) AppTaskThree, (void       *) 0, (OS_PRIO     ) APP_TASK_THREE_PRIO, (CPU_STK    *)&AppTaskThreeStk[0], (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK3PERIOD, (OS_TASK_DEADLINE)TASK3PERIOD);
+    //OSRecTaskCreate((OS_TCB     *)&AppTaskFourTCB, (CPU_CHAR   *)"moveForward", (OS_TASK_PTR ) AppTaskFour, (void       *) 0, (OS_PRIO     ) APP_TASK_FOUR_PRIO, (CPU_STK    *)&AppTaskFourStk[0], (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FOUR_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK4PERIOD, (OS_TASK_DEADLINE)TASK4PERIOD);
+    //OSRecTaskCreate((OS_TCB     *)&AppTaskFiveTCB, (CPU_CHAR   *)"moveBackward", (OS_TASK_PTR ) AppTaskFive, (void       *) 0, (OS_PRIO     ) APP_TASK_FIVE_PRIO, (CPU_STK    *)&AppTaskFiveStk[0], (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_FIVE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK5PERIOD, (OS_TASK_DEADLINE)TASK5PERIOD);
     
     /*Initialize counter for synchronous release*/
     counter  = 0;
@@ -197,52 +197,47 @@ static  void  AppTaskStart (void  *p_arg)
 * 
 *********************************************************************************************************
 */
-void  AppTaskOne (void  *p_arg)
+// Right lED on and off 
+static  void  AppTaskOne (void  *p_arg)
 { 
     OS_ERR      err;
-    CPU_INT32U  i,k,j=0;
-   
-    for(i=0; i <(ONESECONDTICK); i++)
-    {
-      j = ((i * 2) + j);
-    }
+    CPU_INT32U  k, i, j;
     
-    BSP_LED_Off(2u);
-    for(k=0; k<1; k++)
+    BSP_LED_On(1u);
+    
+    for(k=0; k<WORKLOAD1; k++)
     {
-      BSP_LED_Toggle(2u);
-      for(i=0; i <ONESECONDTICK/2; i++)
+      for(i=0; i <ONESECONDTICK; i++)
          j = ((i * 2)+j);
-    }
-    
-   BSP_LED_Off(2u);
-   
-   OSRecTaskDel((OS_TCB *)&AppTaskOneTCB, &err); 
-
-}
-void  AppTaskTwo (void  *p_arg)
-{   
-    OS_ERR      err;
-    CPU_INT32U  i,k,j=0;
-   
-    for(i=0; i <(ONESECONDTICK); i++)
-    {
-      j = ((i * 2) + j);
     }
     
     BSP_LED_Off(1u);
-    for(k=0; k<1; k++)
+ 
+    OSRecTaskDel((OS_TCB *)&AppTaskOneTCB, &err); 
+}
+
+// Left lED on and off 
+static  void  AppTaskTwo (void  *p_arg)
+{   
+    OS_ERR      err;
+    CPU_INT32U  i,k,j=0;
+    ExecutionTime1StartTime = OS_TS_GET();
+    ExecutionTime1StartTime2 = OS_TS_GET(); 
+  
+    BSP_LED_On(2u);
+    for(k=0; k<WORKLOAD2; k++)
     {
-      BSP_LED_Toggle(1u);
-      for(i=0; i <ONESECONDTICK/2; i++)
+      for(i=0; i <ONESECONDTICK; i++)
          j = ((i * 2)+j);
     }
     
-   BSP_LED_Off(1u);
-   
-   OSRecTaskDel((OS_TCB *)&AppTaskTwoTCB, &err);
+    BSP_LED_Off(2u);
+    
+    ExecutionTime2 = ((OS_TS_GET() - ExecutionTime1StartTime2)- (ExecutionTime1StartTime2 - ExecutionTime1StartTime));
+    
+    OSRecTaskDel((OS_TCB *)&AppTaskTwoTCB, &err);
+    
 }
-
 void  AppTaskThree (void  *p_arg)
 {   
     OS_ERR      err;
