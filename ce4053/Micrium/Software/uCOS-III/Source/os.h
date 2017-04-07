@@ -2390,12 +2390,6 @@ void SplayTreeInit(void);
 #define BORDER_VALUE                                    (2147483647u)
 CPU_INT32U CounterOverflow(CPU_INT32U);
 
-/*******************EDF SCHEDULER LIST********************/
-void EDFTreeInit (void);
-Tree * DelEDFTree(OS_TASK_RELEASE_TIME, Tree * );
-Tree * InsertEDFTree(OS_TASK_RELEASE_TIME, Tree * t, OS_TCB* );
-Tree * GetMinEDFTree(Tree *t);
-
 /***************************BINOMIAL HEAP***********************************************/
 #define size_of_array           (10u)
 
@@ -2406,7 +2400,7 @@ struct heap {
 };
 
 typedef struct heap HEAP;
-/*****************************************************************************************/
+
 struct heap_node {
     struct heap_node* 	next;
     struct heap_node*	child;
@@ -2421,10 +2415,6 @@ NODE* find_min();
 NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
-
-//Debugging
-#define BINOMIAL_DEBUG  (1u)
-#define EDF_DEBUG       (0u)
 
 /*
 ************************************************************************************************************************

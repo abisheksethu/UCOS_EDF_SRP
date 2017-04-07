@@ -59,7 +59,7 @@ typedef  union {
 *                                          GLOBAL VARIABLES
 *********************************************************************************************************
 */
-CPU_TS AStartTime, AStartTime2, OverheadValue1;
+CPU_TS AStartTime, AStartTime2, TickISROverhead;
 /*
 *********************************************************************************************************
 *                                      LOCAL FUNCTION PROTOTYPES
@@ -188,7 +188,7 @@ static void App_TaskLoader  (void)
   (void)OSTaskSemPost((OS_TCB *)&OSTaskHandlerTCB,            /* Signal OSTaskHandler   */
                       (OS_OPT  ) OS_OPT_POST_NONE,
                       (OS_ERR *)&err);
-  OverheadValue1 = ((OS_TS_GET() - AStartTime2)- (AStartTime2 - AStartTime));
+  TickISROverhead = ((OS_TS_GET() - AStartTime2)- (AStartTime2 - AStartTime));
 }
 
 /*

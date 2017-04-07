@@ -39,10 +39,9 @@
 */
 CPU_INT32U  counter;
 extern Tree * RecursionTree;
-extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
-extern Tree * SchedulerTree;
-CPU_TS StartTime, StartTime2, OverheadValue2;
+CPU_TS StartTime, StartTime2, ReleaseOverhead;
+CPU_TS StartTime3, StartTime4, SchedulingOverhead;
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -150,7 +149,6 @@ void  OSTaskHandlerUpdate ()
   CPU_INT32U entry = 0;
   CPU_INT32U abs_deadline = 0;
   Tree *min;
-  
   StartTime = OS_TS_GET();
   StartTime2 = OS_TS_GET(); 
   
@@ -167,16 +165,11 @@ void  OSTaskHandlerUpdate ()
         /* --------------- RESET TCB STACK -------*/
         OSTCBStackReset(min->p_tcb[i]);
         /* --------------- ADD TASK TO SCHEDULING LIST -------*/
-        abs_deadline = CounterOverflow(min->p_tcb[i]->TaskAbsDeadline + (min->p_tcb[i]->TaskDeadline));
+        abs_deadline = min->p_tcb[i]->TaskAbsDeadline + (min->p_tcb[i]->TaskDeadline);
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
-#if BINOMIAL_DEBUG
         heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
-#endif
-#if EDF_DEBUG
-        SchedulerTree = InsertEDFTree(min->p_tcb[i]->TaskAbsDeadline,SchedulerTree,min->p_tcb[i]);
-#endif
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
-        rel_time = CounterOverflow(min->p_tcb[i]->TaskRelPeriod + (min->p_tcb[i]->TaskPeriod));
+        rel_time = min->p_tcb[i]->TaskRelPeriod + (min->p_tcb[i]->TaskPeriod);
         min->p_tcb[i]->TaskRelPeriod = rel_time;
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
@@ -184,17 +177,17 @@ void  OSTaskHandlerUpdate ()
       else
       {
         /* Update the local counter and boundary check */
-        counter = CounterOverflow((counter+1));
+        counter = (counter+1);
         return ;
       }
     }
     /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
     RecursionTree = DelRecTree(min->release_time, RecursionTree);
+    ReleaseOverhead = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
     OSSched();
   }
   /* Update the local counter and boundary check */
-  counter = CounterOverflow((counter+1));
-  OverheadValue2 = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
+  counter =(counter+1);
   return ;
 }
 /*
@@ -257,31 +250,17 @@ void OSTCBStackReset(OS_TCB *p_tcb)
 */
 OS_TCB*  OSEDFSched (void)
 { 
-#if BINOMIAL_DEBUG
   NODE* earliest_deadline;
-#endif
-#if EDF_DEBUG
-  Tree *earliest_deadline;
-#endif
-  
+  StartTime3 = OS_TS_GET();
+  StartTime4 = OS_TS_GET();
   /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
-#if BINOMIAL_DEBUG
   earliest_deadline=find_min();
-#endif
-#if EDF_DEBUG
-  earliest_deadline = GetMinEDFTree(SchedulerTree);
-#endif
-  
   if (earliest_deadline == NULL){
     return NULL;
   }
-  else {
-#if EDF_DEBUG
-    return earliest_deadline->p_tcb[0];      
-#endif
-#if BINOMIAL_DEBUG    
+  else {    
+    SchedulingOverhead = ((OS_TS_GET() - StartTime4)- (StartTime4 - StartTime3));
     return earliest_deadline->ptcb;      
-#endif
   }
 }
 /*
@@ -638,14 +617,9 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
 
     OS_TaskRecDelTCB(p_tcb);                                /* Initialize the TCB to default values                   */
 
-    OS_CRITICAL_EXIT_NO_SCHED();
-#if BINOMIAL_DEBUG                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
+    OS_CRITICAL_EXIT_NO_SCHED();                                                            /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
     NODE* completed_task = extract_min();
     free_node(completed_task);
-#endif
-#if EDF_DEBUG
-    SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );
-#endif
     OSSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;
