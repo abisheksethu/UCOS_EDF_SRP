@@ -37,10 +37,10 @@
 *                                            GLOBAL VARIABLES
 *********************************************************************************************************
 */
-static CPU_INT32U  counter;
+CPU_INT32U  counter;
 extern Tree * RecursionTree;
-extern Tree * SchedulerTree;
 extern HEAP * HEAP1;
+<<<<<<< .merge_file_a04944
 extern Tree * SchedulerTree;
 
 /*OVERHEAD CALCULATION
@@ -49,6 +49,11 @@ extern CPU_TS StartTime2;*/
 
 extern CPU_INT08U system_ceiling;
 CPU_TS OverheadValue;
+=======
+extern OS_TASK_DEADLINE system_ceiling;
+CPU_TS StartTime, StartTime2, ReleaseOverhead;
+CPU_TS StartTime3, StartTime4, SchedulingOverhead;
+>>>>>>> .merge_file_a01556
 /*
 *********************************************************************************************************
 *                                         FUNCTION PROTOTYPES
@@ -56,10 +61,89 @@ CPU_TS OverheadValue;
 */
 
 /*
-*********************************************************************************************************
-*                                          CREATE RECURSIVE TASKs
+************************************************************************************************************************
+*                                                      OS TASK HANDLER TASK
 *
-* Description : This function is called by Timer0A interrupt handler. Based on the task set registered 
+* Description: This task is internal to uC/OS-III and is triggered by the TIMER0A interrupt.
+*
+* Arguments  : p_arg     is an argument passed to the task when the task is created (unused).
+*
+* Returns    : none
+*
+* Note(s)    : This function is INTERNAL to uC/OS-III and your application should not call it.
+************************************************************************************************************************
+*/
+
+void  OSTaskHandler (void *p_arg)
+{
+    OS_ERR  err;
+    CPU_TS  ts;
+
+
+    p_arg = p_arg;                                          /* Prevent compiler warning                               */
+
+    while (DEF_ON) {
+        (void)OSTaskSemPend((OS_TICK  )0,
+                            (OS_OPT   )OS_OPT_PEND_BLOCKING,
+                            (CPU_TS  *)&ts,
+                            (OS_ERR  *)&err);               /* Wait for signal from tick interrupt                    */
+        if (err == OS_ERR_NONE) {
+            if (OSRunning == OS_STATE_OS_RUNNING) {
+                OSTaskHandlerUpdate();                        /* Update all tasks waiting for time                      */
+            }
+        }
+    }
+}
+
+/*$PAGE*/
+/*
+************************************************************************************************************************
+*                                                 INITIALIZE OSTaskLoader TASK
+*
+* Description: This function is called by OSInit() to create the OSTaskLoader task.
+*
+* Arguments  : p_err   is a pointer to a variable that will hold the value of an error code:
+*
+*                          OS_ERR_TICK_STK_INVALID   if the pointer to the tick task stack is a NULL pointer
+*                          OS_ERR_TICK_STK_SIZE      indicates that the specified stack size
+*                          OS_ERR_PRIO_INVALID       if the priority you specified in the configuration is invalid
+*                                                      (There could be only one task at the Idle Task priority)
+*                                                      (Maybe the priority you specified is higher than OS_CFG_PRIO_MAX-1
+*                          OS_ERR_??                 other error code returned by OSTaskCreate()
+*
+* Returns    : none
+*
+* Note(s)    : This function is INTERNAL to uC/OS-III and your application should not call it.
+************************************************************************************************************************
+*/
+void OS_TaskLoaderInit(OS_ERR  *p_err){
+  
+  #ifdef OS_SAFETY_CRITICAL
+    if (p_err == (OS_ERR *)0) {
+        OS_SAFETY_CRITICAL_EXCEPTION();
+        return;
+    }
+  #endif
+    
+  OSTaskCreate((OS_TCB     *)&OSTaskHandlerTCB,
+                 (CPU_CHAR   *)((void *)"uC/OS-III OS Recursive Task Handler"),
+                 (OS_TASK_PTR )OSTaskHandler,
+                 (void       *)0,
+                 (OS_PRIO     )OSCfg_TaskHandlerPrio,
+                 (CPU_STK    *)OSCfg_TaskHandlerStkBasePtr,
+                 (CPU_STK_SIZE)OSCfg_TaskHandlerStkLimit,
+                 (CPU_STK_SIZE)OSCfg_TaskHandlerStkSize,
+                 (OS_MSG_QTY  )0u,
+                 (OS_TICK     )0u,
+                 (void       *)0,
+                 (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+                 (OS_ERR     *)p_err);
+}
+/*
+*********************************************************************************************************
+*                                          CREATE RECURSIVE TASK AND SCHEDULE
+*
+* Description : This task is triggered by the TIMER0A interrupt. Based on the task set registered 
 *               in the datastructure, it will create a new task with respective to its release time
 *
 * Arguments   : none
@@ -71,12 +155,14 @@ CPU_TS OverheadValue;
 *********************************************************************************************************
 */
 
-void  OSTaskHandler (void)
+void  OSTaskHandlerUpdate ()
 { 
   CPU_INT32U rel_time = 0;
   CPU_INT32U entry = 0;
   CPU_INT32U abs_deadline = 0;
   Tree *min;
+  StartTime = OS_TS_GET();
+  StartTime2 = OS_TS_GET(); 
   
   /*--------------- FIND MINIMUM TASK RELEASE TIME -------*/    
   min = GetMinRecTree(RecursionTree);
@@ -86,6 +172,7 @@ void  OSTaskHandler (void)
     entry = min->entries;
     for(int i=0; (i < entry && i < NUM_OF_TASKS); i++)
     {
+<<<<<<< .merge_file_a04944
         if(min->p_tcb[i]!= NULL)
         { 
           /*---------------------check if the task's preemption threshold is greater than the system ceiling-----------*/
@@ -133,14 +220,47 @@ void  OSTaskHandler (void)
   }
     //OSSched();   //is this the correct position to inlcude OSSched() ???
     else
+=======
+      if(min->p_tcb[i]!= NULL)
+      { 
+        /* --------------- RESET TCB STACK -------*/
+        OSTCBStackReset(min->p_tcb[i]);
+        /* --------------- ADD TASK TO SCHEDULING HEAP -------*/
+        abs_deadline = counter + (min->p_tcb[i]->TaskDeadline);
+        min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
+        if (min->p_tcb[i]->TaskPremptionLevel < system_ceiling)
+          heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
+        else
+          avl_root2 = InsertBlkTask(avl_root2, min->p_tcb[i], min->p_tcb[i]->TaskPremptionLevel);
+        /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
+        rel_time = min->p_tcb[i]->TaskRelPeriod + (min->p_tcb[i]->TaskPeriod);
+        min->p_tcb[i]->TaskRelPeriod = rel_time;
+        /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
+        RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
+      }
+      else
+>>>>>>> .merge_file_a01556
       {
         /* Update the local counter and boundary check */
-        counter = CounterOverflow((counter+1));
+        counter = (counter+1);
         return ;
       }
+<<<<<<< .merge_file_a04944
     OSSched();
   }
  
+=======
+    }
+    /* --------------- REMOVE TCB FROM TASK RECURSION LIST -------*/
+    RecursionTree = DelRecTree(min->release_time, RecursionTree);
+    ReleaseOverhead = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
+    OSSched();
+  }
+  /* Update the local counter and boundary check */
+  counter =(counter+1);
+  return ;
+}
+>>>>>>> .merge_file_a01556
 /*
 *********************************************************************************************************
 *                                          RESET STACK FOR NEW TASK
@@ -201,16 +321,12 @@ void OSTCBStackReset(OS_TCB *p_tcb)
 */
 OS_TCB*  OSEDFSched (void)
 { 
-#if BINOMIAL_DEBUG
   NODE* earliest_deadline;
-#endif
-#if EDF_DEBUG
-  Tree *earliest_deadline;
-#endif
-  
+  StartTime3 = OS_TS_GET();
+  StartTime4 = OS_TS_GET();
   /* ----------FIND MINIMUM FROM THE SCHEDULER LIST ---------- */
-#if BINOMIAL_DEBUG
   earliest_deadline=find_min();
+<<<<<<< .merge_file_a04944
 #endif
 //#if EDF_DEBUG
   //earliest_deadline = GetMinEDFTree(SchedulerTree);
@@ -220,9 +336,15 @@ OS_TCB*  OSEDFSched (void)
   //OverheadValue = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
   
   if (earliest_deadline == NULL)
+=======
+  if (earliest_deadline == NULL){
+>>>>>>> .merge_file_a01556
     return NULL;
-  else 
-    return earliest_deadline->p_tcb[0];      
+  }
+  else {    
+    SchedulingOverhead = ((OS_TS_GET() - StartTime4)- (StartTime4 - StartTime3));
+    return earliest_deadline->ptcb;      
+  }
 }
 /*
 ************************************************************************************************************************
@@ -431,14 +553,17 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
 
     p_tcb->StkPtr        = p_sp;                            /* Save the new top-of-stack pointer                      */
     p_tcb->StkLimitPtr   = p_stk_limit;                     /* Save the stack limit pointer                           */
-
+    //counter  = 0;
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
-    counter              = 0;
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
-    p_tcb->TaskDeadline  = p_task_deadline;                 /* Save Deadline for Job1*/
+    p_tcb->TaskDeadline  = p_task_deadline;                               /* Save Deadline for Job1*/
     p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
+<<<<<<< .merge_file_a04944
     p_tcb->TaskPreemptionThreshold = p_preemption_threshold; /* Save the preemption threshold of the task*/
+=======
+    p_tcb->TaskPremptionLevel = p_task_deadline;            /* Save Task Premption level*/    
+>>>>>>> .merge_file_a01556
     
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
     if (time_quanta == (OS_TICK)0) {
@@ -581,14 +706,17 @@ void  OSRecTaskDel (OS_TCB  *p_tcb,
 
     OS_TaskRecDelTCB(p_tcb);                                /* Initialize the TCB to default values                   */
 
-    OS_CRITICAL_EXIT_NO_SCHED();
-#if BINOMIAL_DEBUG                                                             /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
+    OS_CRITICAL_EXIT_NO_SCHED();                                                            /* ---------- DELETE COMPLETED TCB IN SCHEDULER LIST ---------- */
     NODE* completed_task = extract_min();
+<<<<<<< .merge_file_a04944
     free(completed_task);
 #endif
 //#if EDF_DEBUG
     //SchedulerTree = DelEDFTree(p_tcb->TaskAbsDeadline, SchedulerTree );
 //#endif
+=======
+    free_node(completed_task);
+>>>>>>> .merge_file_a01556
     OSSched();                                              /* Find new highest priority task - EDF Scheduling */
 
     *p_err = OS_ERR_NONE;

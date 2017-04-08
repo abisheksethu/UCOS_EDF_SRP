@@ -173,7 +173,7 @@ NODE* merge(NODE* master, NODE* child)
         master=child;
         child=M;
     }
-    else{
+
        child->next=master->child;
         master->child=child;
         master->degree++;
@@ -196,7 +196,7 @@ NODE* merge(NODE* master, NODE* child)
         return master;  
     }
         //return the pointer to the newly merged tree
-}
+
 
 
 
@@ -298,7 +298,8 @@ NODE* extract_min()
 void free_node(NODE* temp)
 {
   OS_ERR err1;
-  OSMemPut((OS_MEM*)&MemoryCB_heap_node, (void*)temp,(OS_ERR*)&err1);;
+  OSMemPut((OS_MEM*)&MemoryCB_heap_node, (void*)temp,(OS_ERR*)&err1);
+  return;
 }
 
 

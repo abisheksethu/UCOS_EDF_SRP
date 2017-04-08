@@ -207,16 +207,16 @@ void  OSInit (OS_ERR  *p_err)
 #endif
 
     OSCfg_Init();
+    
+    OS_TaskLoaderInit(p_err);                              /* Initialize the Timer0A's - OSTaskLoader                 */
+    
     /* Tree Initialization */
     SplayTreeInit();
-#if BINOMIAL_DEBUG
     heap_create(); 
-#endif
-#if EDF_DEBUG
-    EDFTreeInit();
-#endif
+    AvlTreeInit();
+    Tree234Init();
 }
-
+    
 /*$PAGE*/
 /*
 ************************************************************************************************************************
@@ -378,7 +378,11 @@ void  OSSched (void)
   /* Find the highest priority ready from ready list*/
   OSPrioHighRdy   = OS_PrioGetHighest();  
   
+<<<<<<< .merge_file_a01976
   if (OSPrioHighRdy > 3) 
+=======
+  if (OSPrioHighRdy > 6) 
+>>>>>>> .merge_file_a05520
   { 
     /* Find the highest priority ready from Binomial Heap*/
     OS_TCB* task_to_run = OSEDFSched();

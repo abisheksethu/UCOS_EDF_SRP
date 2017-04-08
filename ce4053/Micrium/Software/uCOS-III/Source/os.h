@@ -833,7 +833,11 @@ struct  os_mutex {
     OS_PRIO              OwnerOriginalPrio;
     OS_NESTING_CTR       OwnerNestingCtr;                   /* Mutex is available when the counter is 0               */
     CPU_TS               TS;
+<<<<<<< .merge_file_a07092
     CPU_INT08U           MutexResourceCeiling;
+=======
+    OS_TASK_DEADLINE     ResCeil;
+>>>>>>> .merge_file_a02852
 };
 
 /*$PAGE*/
@@ -989,7 +993,11 @@ struct os_tcb {
    OS_TASK_RELEASE_TIME   TaskRelPeriod;
    OS_TASK_DEADLINE       TaskDeadline;
    OS_TASK_DEADLINE       TaskAbsDeadline;
+<<<<<<< .merge_file_a07092
    CPU_INT08U             TaskPreemptionThreshold;  //added preemption threshold for every task
+=======
+   OS_TASK_DEADLINE       TaskPremptionLevel;
+>>>>>>> .merge_file_a02852
 #endif
 };
 
@@ -1177,6 +1185,7 @@ OS_EXT            OS_OBJ_QTY             OSTaskQty;                   /* Number 
                                                                       /* TICK TASK ---------------------------------- */
 OS_EXT            OS_TICK                OSTickCtr;                   /* Counts the #ticks since startup or last set  */
 OS_EXT            OS_TCB                 OSTickTaskTCB;
+OS_EXT            OS_TCB                 OSTaskHandlerTCB;
 OS_EXT            CPU_TS                 OSTickTaskTimeMax;
 
 
@@ -1244,6 +1253,11 @@ extern  CPU_INT32U    const OSCfg_TickTaskStkSizeRAM;
 extern  OS_OBJ_QTY    const OSCfg_TickWheelSize;
 extern  CPU_INT32U    const OSCfg_TickWheelSizeRAM;
 
+extern OS_PRIO        const  OSCfg_TaskHandlerPrio;
+extern CPU_STK      * const  OSCfg_TaskHandlerStkBasePtr;
+extern CPU_STK_SIZE   const  OSCfg_TaskHandlerStkLimit;
+extern CPU_STK_SIZE   const  OSCfg_TaskHandlerStkSize;
+
 extern  OS_PRIO       const OSCfg_TmrTaskPrio;
 extern  OS_RATE_HZ    const OSCfg_TmrTaskRate_Hz;
 extern  CPU_STK     * const OSCfg_TmrTaskStkBasePtr;
@@ -1272,6 +1286,7 @@ extern  CPU_STK        OSCfg_StatTaskStk[];
 #endif
 
 extern  CPU_STK        OSCfg_TickTaskStk[];
+extern  CPU_STK        OSCfg_TaskHandlerStk[];
 extern  OS_TICK_SPOKE  OSCfg_TickWheel[];
 
 #if (OS_CFG_TMR_EN > 0u)
@@ -1393,7 +1408,11 @@ void          OS_MemInit                (OS_ERR                *p_err);
 
 void          OSMutexCreate             (OS_MUTEX              *p_mutex,
                                          CPU_CHAR              *p_name,
+<<<<<<< .merge_file_a07092
                                          CPU_INT08U   p_mutex_ceiling,
+=======
+                                         OS_TASK_DEADLINE       resceil,
+>>>>>>> .merge_file_a02852
                                          OS_ERR                *p_err);
 
 #if OS_CFG_MUTEX_DEL_EN > 0u
@@ -1586,7 +1605,8 @@ void          OSTaskChangePrio          (OS_TCB                *p_tcb,
                                          OS_ERR                *p_err);
 #endif
 
-void         OSTaskHandler              (void);
+void         OSTaskHandler              (void                  *p_arg);
+void         OSTaskHandlerUpdate        (void);
 
 void         OSTCBStackReset            (OS_TCB *p_tcb);
 void         OSRecTaskCreate            (OS_TCB                *p_tcb,
@@ -1880,6 +1900,7 @@ void          OS_StatTaskInit           (OS_ERR                *p_err);
 
 void          OS_TickTask               (void                  *p_arg);
 void          OS_TickTaskInit           (OS_ERR                *p_err);
+void          OS_TaskLoaderInit         (OS_ERR                *p_err);
 
 /*$PAGE*/
 /*
@@ -2385,7 +2406,11 @@ void SplayTreeInit(void);
 #define BORDER_VALUE                                    (2147483647u)
 CPU_INT32U CounterOverflow(CPU_INT32U);
 
+<<<<<<< .merge_file_a07092
 /***************************BINOMIAL HEAP*******************************************************************************/
+=======
+/***************************BINOMIAL HEAP***********************************************/
+>>>>>>> .merge_file_a02852
 #define size_of_array           (10u)
 
 struct heap {
@@ -2395,7 +2420,7 @@ struct heap {
 };
 
 typedef struct heap HEAP;
-/*****************************************************************************************/
+
 struct heap_node {
     struct heap_node* 	next;
     struct heap_node*	child;
@@ -2410,10 +2435,50 @@ NODE* find_min();
 NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
+/********************************* PHASE 2 IMPLEMENTATION ***********************/
 
-//Debugging
-#define BINOMIAL_DEBUG  (0u)
-#define EDF_DEBUG       (1u)
+#define PIP_DISABLE            0u
+#define MAX_SYSTEM_CEILING     100u       // To allow all the tasks
+
+/******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
+struct AVL_Node
+{
+    OS_MUTEX* mutex_pointer;
+    OS_TASK_DEADLINE resource_ceiling;
+    struct AVL_Node *left;
+    struct AVL_Node *right;
+    int height;
+    int entries;
+};
+
+typedef struct AVL_Node AVL_NODE;
+
+AVL_NODE* InsertMutex(AVL_NODE*,  OS_MUTEX*, OS_TASK_DEADLINE);
+AVL_NODE* MaxResCeil(AVL_NODE*);
+AVL_NODE* DeleteMutex(AVL_NODE*, OS_TASK_DEADLINE);
+void AvlTreeInit(void);
+
+/******************************************************************* AVL TREE FOR BLOCKED TASKS****************************************/
+struct AVL_Node2
+{
+    OS_TCB* tcb_pointer;
+    OS_TASK_DEADLINE preemption_threshold;
+    struct AVL_Node2 *left;
+    struct AVL_Node2 *right;
+    int height2;
+};
+
+typedef struct AVL_Node2 AVL_NODE2;
+
+AVL_NODE2* InsertBlkTask(AVL_NODE2*,  OS_TCB*, OS_TASK_DEADLINE);
+AVL_NODE2* MinTaskLevel(AVL_NODE2*);
+AVL_NODE2* Delblocktask(AVL_NODE2*, OS_TASK_DEADLINE);
+void Tree234Init(void);
+
+extern AVL_NODE* maxresceil;
+extern AVL_NODE2* mintasklevel;
+extern AVL_NODE* avl_root;
+extern AVL_NODE2* avl_root2;
 
 /******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
 struct AVL_Node
