@@ -2416,6 +2416,45 @@ NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 
+/******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
+struct AVL_Node
+{
+    OS_MUTEX* mutex_pointer;
+    CPU_INT08U resource_ceiling;
+    struct AVL_Node *left;
+    struct AVL_Node *right;
+    int height;
+};
+
+typedef struct AVL_Node AVL_NODE;
+
+AVL_NODE* InsertMutex(AVL_NODE*,  OS_MUTEX*, CPU_INT08U);
+AVL_NODE* MaxResCeil(AVL_NODE*);
+AVL_NODE* DeleteMutex(AVL_NODE*, CPU_INT08U);
+void AvlTreeInit(void);
+
+/******************************************************************* AVL TREE FOR BLOCKED TASKS****************************************/
+struct AVL_Node2
+{
+    OS_TCB* tcb_pointer;
+    CPU_INT08U preemption_threshold;
+    struct AVL_Node2 *left;
+    struct AVL_Node2 *right;
+    int height2;
+};
+
+typedef struct AVL_Node2 AVL_NODE2;
+
+AVL_NODE2* InsertBlkTask(AVL_NODE2*,  OS_TCB*, CPU_INT08U);
+AVL_NODE2* MinTaskLevel(AVL_NODE2*);
+AVL_NODE2* Delblocktask(AVL_NODE2*, CPU_INT08U);
+void Tree234Init(void);
+
+extern AVL_NODE* maxresceil;
+extern AVL_NODE2* mintasklevel;
+extern AVL_NODE* avl_root;
+extern AVL_NODE2* avl_root2;
+
 /*
 ************************************************************************************************************************
 *                                                 uC/OS-III MODULE END

@@ -213,6 +213,8 @@ void  OSInit (OS_ERR  *p_err)
     /* Tree Initialization */
     SplayTreeInit();
     heap_create(); 
+    AvlTreeInit();
+    Tree234Init();
 }
     
 /*$PAGE*/

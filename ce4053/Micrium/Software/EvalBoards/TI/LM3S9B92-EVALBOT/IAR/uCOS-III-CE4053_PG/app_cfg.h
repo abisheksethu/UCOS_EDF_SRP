@@ -26,6 +26,9 @@
 #ifndef  __APP_CFG_H__
 #define  __APP_CFG_H__
 
+#define  R1Ceil                                         25u
+#define  R2Ceil                                         11u
+#define  R3Ceil                                         11u
 
 /*
 *********************************************************************************************************
@@ -43,20 +46,12 @@
 *********************************************************************************************************
 */
 
-#define  APP_TASK_START_PRIO                        	6u
+#define  APP_TASK_START_PRIO                        	1u
 
-#define  APP_TASK_REPEAT_ONE_PRIO                       2u
-#define  APP_TASK_REPEAT_TWO_PRIO                       3u
-#define  APP_TASK_REPEAT_THREE_PRIO                     4u
-#define  APP_TASK_REPEAT_FOUR_PRIO                      5u
-#define  APP_TASK_REPEAT_FIVE_PRIO                      6u
+#define  APP_TASK_ONE_PRIO                              11u
+#define  APP_TASK_TWO_PRIO                              12u
+#define  APP_TASK_THREE_PRIO                            13u
 
-
-#define  APP_TASK_ONE_PRIO                              7u
-#define  APP_TASK_TWO_PRIO                              8u
-#define  APP_TASK_THREE_PRIO                            9u
-#define  APP_TASK_FOUR_PRIO                             10u
-#define  APP_TASK_FIVE_PRIO                             11u
 
 
 /*
@@ -70,20 +65,6 @@
 #define  APP_TASK_ONE_STK_SIZE                      128u
 #define  APP_TASK_TWO_STK_SIZE                      128u
 #define  APP_TASK_THREE_STK_SIZE                    128u
-#define  APP_TASK_FOUR_STK_SIZE                     128u
-#define  APP_TASK_FIVE_STK_SIZE                     128u
-
-/*
-*********************************************************************************************************
-*                                             LOCAL DEFINES
-*********************************************************************************************************
-*/
-
-#define TASK1PERIOD                    5u
-#define TASK2PERIOD                    7u
-#define TASK3PERIOD                   15u
-#define TASK4PERIOD                   35u
-#define TASK5PERIOD                   60u
 
 /*
 *********************************************************************************************************
