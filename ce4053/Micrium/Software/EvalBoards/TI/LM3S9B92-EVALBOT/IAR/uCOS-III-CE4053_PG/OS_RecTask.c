@@ -40,6 +40,7 @@
 CPU_INT32U  counter;
 extern Tree * RecursionTree;
 extern HEAP * HEAP1;
+extern OS_TASK_DEADLINE system_ceiling;
 CPU_TS StartTime, StartTime2, ReleaseOverhead;
 CPU_TS StartTime3, StartTime4, SchedulingOverhead;
 /*
@@ -164,10 +165,13 @@ void  OSTaskHandlerUpdate ()
       { 
         /* --------------- RESET TCB STACK -------*/
         OSTCBStackReset(min->p_tcb[i]);
-        /* --------------- ADD TASK TO SCHEDULING LIST -------*/
+        /* --------------- ADD TASK TO SCHEDULING HEAP -------*/
         abs_deadline = min->p_tcb[i]->TaskAbsDeadline + (min->p_tcb[i]->TaskDeadline);
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
-        heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
+        if (min->p_tcb[i]->TaskPremptionLevel < system_ceiling)
+          heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
+        else
+          avl_root2 = InsertBlkTask(avl_root2, min->p_tcb[i], min->p_tcb[i]->TaskPremptionLevel);
         /* ---------------THEN UPDATE ABSOlUTE RELEASE PERIOD AND ABSOLUTE DEADLINE FOR THE TASK -------*/
         rel_time = min->p_tcb[i]->TaskRelPeriod + (min->p_tcb[i]->TaskPeriod);
         min->p_tcb[i]->TaskRelPeriod = rel_time;
@@ -473,8 +477,9 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
-    p_tcb->TaskDeadline  = 0;                 /* Save Deadline for Job1*/
+    p_tcb->TaskDeadline  = 0;                               /* Save Deadline for Job1*/
     p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
+    p_tcb->TaskPremptionLevel = p_task_deadline;            /* Save Task Premption level*/    
     
 #if OS_CFG_SCHED_ROUND_ROBIN_EN > 0u
     if (time_quanta == (OS_TICK)0) {

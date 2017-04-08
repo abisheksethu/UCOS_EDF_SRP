@@ -48,6 +48,14 @@
 #define TASK2PERIOD                   5
 #define TASK3PERIOD                   10
 
+#define TASK1DEADLINE                   5u
+#define TASK2DEADLINE                   5u
+#define TASK3DEADLINE                   10u
+
+#define  R1Ceil                         TASK3DEADLINE
+#define  R2Ceil                         TASK1DEADLINE
+#define  R3Ceil                         TASK2DEADLINE
+
 #define WORKLOAD1                    2
 #define WORKLOAD2                    2
 #define WORKLOAD3                    1
@@ -84,7 +92,7 @@ CPU_INT08U      Right_tgt;
 
 CPU_INT32U      iToken  = 0;
 CPU_INT32U      iCounter= 1;
-CPU_INT32U      iMove   = 10;
+CPU_INT32U      iMove   = 1;
 
 CPU_CHAR        g_cCmdBuf[30] = {'n','e','w',' ','l','o','g','.','t','x','t','\0'};
 extern CPU_INT32U  counter;
@@ -204,14 +212,14 @@ static  void  AppTaskStart (void  *p_arg)
     OSQCreate((OS_Q *)&DummyQ, (CPU_CHAR *)"Dummy Queue", (OS_MSG_QTY)5, (OS_ERR *)&err);
     
     /* Create Mutexes */
-    OSMutexCreate((OS_MUTEX *)&MutexOne, (CPU_CHAR *)2, (OS_ERR *)&err);
-    OSMutexCreate((OS_MUTEX *)&MutexTwo, (CPU_CHAR *)3, (OS_ERR *)&err);
-    OSMutexCreate((OS_MUTEX *)&MutexThree, (CPU_CHAR *)3, (OS_ERR *)&err);
+    OSMutexCreate((OS_MUTEX *)&MutexOne, (CPU_CHAR *)2, R1Ceil, (OS_ERR *)&err);
+    OSMutexCreate((OS_MUTEX *)&MutexTwo, (CPU_CHAR *)3, R2Ceil, (OS_ERR *)&err);
+    OSMutexCreate((OS_MUTEX *)&MutexThree, (CPU_CHAR *)3, R3Ceil, (OS_ERR *)&err);
 
     /* Initialise the 3 Main Tasks to  Deleted State */
-    OSRecTaskCreate((OS_TCB     *)&AppTaskOneTCB, (CPU_CHAR   *)"App Task One", (OS_TASK_PTR ) AppTaskOne, (void       *) 0, (OS_PRIO     ) APP_TASK_ONE_PRIO, (CPU_STK    *)&AppTaskOneStk[0], (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *)(CPU_INT32U) 1, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK1PERIOD, (OS_TASK_DEADLINE)TASK1PERIOD);
-    OSRecTaskCreate((OS_TCB     *)&AppTaskTwoTCB, (CPU_CHAR   *)"App Task Two", (OS_TASK_PTR ) AppTaskTwo, (void       *) 0, (OS_PRIO     ) APP_TASK_TWO_PRIO, (CPU_STK    *)&AppTaskTwoStk[0], (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK2PERIOD, (OS_TASK_DEADLINE)TASK2PERIOD);
-    OSRecTaskCreate((OS_TCB     *)&AppTaskThreeTCB, (CPU_CHAR   *)"App Task Three", (OS_TASK_PTR ) AppTaskThree, (void       *) 0, (OS_PRIO     ) APP_TASK_THREE_PRIO, (CPU_STK    *)&AppTaskThreeStk[0], (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK3PERIOD, (OS_TASK_DEADLINE)TASK3PERIOD);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskOneTCB, (CPU_CHAR   *)"App Task One", (OS_TASK_PTR ) AppTaskOne, (void       *) 0, (OS_PRIO     ) APP_TASK_ONE_PRIO, (CPU_STK    *)&AppTaskOneStk[0], (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_ONE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *)(CPU_INT32U) 1, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK1PERIOD, (OS_TASK_DEADLINE)TASK1DEADLINE);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskTwoTCB, (CPU_CHAR   *)"App Task Two", (OS_TASK_PTR ) AppTaskTwo, (void       *) 0, (OS_PRIO     ) APP_TASK_TWO_PRIO, (CPU_STK    *)&AppTaskTwoStk[0], (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_TWO_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK2PERIOD, (OS_TASK_DEADLINE)TASK2DEADLINE);
+    OSRecTaskCreate((OS_TCB     *)&AppTaskThreeTCB, (CPU_CHAR   *)"App Task Three", (OS_TASK_PTR ) AppTaskThree, (void       *) 0, (OS_PRIO     ) APP_TASK_THREE_PRIO, (CPU_STK    *)&AppTaskThreeStk[0], (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE / 10u, (CPU_STK_SIZE) APP_TASK_THREE_STK_SIZE, (OS_MSG_QTY  ) 0u, (OS_TICK     ) 0u, (void       *) (CPU_INT32U) 2, (OS_OPT      )(OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR), (OS_ERR     *)&err, (OS_TASK_PERIOD)TASK3PERIOD, (OS_TASK_DEADLINE)TASK3DEADLINE);
     
     /*Initialize counter for synchronous release*/
     counter = 0;
@@ -242,7 +250,6 @@ static  void  AppTaskOne (void  *p_arg)
       RoboTurn(FRONT, 14, 50);
       iMove--;
     }
-    
     for(k=0; k<iSec; k++)
     {
       for(i=0; i <ONESECONDTICK; i++)
@@ -274,6 +281,7 @@ static  void  AppTaskTwo (void  *p_arg)
     }
     BSP_LED_Off(1u);
     
+    iMove++;
     
     OSMutexPend((OS_MUTEX *)&MutexTwo, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
 

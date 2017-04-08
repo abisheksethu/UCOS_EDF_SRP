@@ -19,26 +19,25 @@ OS_MEM MemoryCB_avl2;
 void Tree234Init(void)
 {
   OS_ERR      err;
-  OS_MEM_QTY node_size = sizeof(CPU_INT32U);
-  OSMemCreate((OS_MEM*)&MemoryCB_avl2, (CPU_CHAR*)"avl_tree_node", &MemoryPartition_avl2[0][0], (OS_MEM_QTY)(5), (OS_MEM_SIZE)(10*node_size), &err);
+  OSMemCreate((OS_MEM*)&MemoryCB_avl2, (CPU_CHAR*)"234_tree", &MemoryPartition_avl2[0][0], (OS_MEM_QTY)(5), (OS_MEM_SIZE)(10*sizeof(CPU_INT32U)), &err);
   avl_root2 = NULL;
   mintasklevel = NULL;
 }
 
-CPU_INT08U height2(AVL_NODE2 *N)
+OS_TASK_DEADLINE height2(AVL_NODE2 *N)
 {
     if (N == NULL)
         return 0;
     return N->height2;
 }
 
-CPU_INT08U max2(CPU_INT08U a, CPU_INT08U b)
+OS_TASK_DEADLINE max2(OS_TASK_DEADLINE a, OS_TASK_DEADLINE b)
 {
     return (a > b)? a : b;
 }
 
 
-AVL_NODE2* AVL_newNode2( OS_TCB* tcb_pointer, CPU_INT08U preemption_threshold )
+AVL_NODE2* AVL_newNode2( OS_TCB* tcb_pointer, OS_TASK_DEADLINE preemption_threshold )
 {
   OS_ERR err;
     AVL_NODE2* node = (AVL_NODE2*) OSMemGet((OS_MEM*)&MemoryCB_avl2, (OS_ERR*)&err);;
@@ -94,7 +93,7 @@ CPU_INT08S getBalance2(AVL_NODE2 *N)
     return height2(N->left) - height2(N->right);
 }
 
-AVL_NODE2* InsertBlkTask(AVL_NODE2* node,  OS_TCB* tcb_pointer, CPU_INT08U preemption_threshold)
+AVL_NODE2* InsertBlkTask(AVL_NODE2* node,  OS_TCB* tcb_pointer, OS_TASK_DEADLINE preemption_threshold)
 {
     
     if (node == NULL)
@@ -138,7 +137,7 @@ AVL_NODE2* InsertBlkTask(AVL_NODE2* node,  OS_TCB* tcb_pointer, CPU_INT08U preem
         node->right = rightRotate2(node->right);
         return leftRotate2(node);
     }
-    mintasklevel = MinTaskLevel(avl_root2);
+    //mintasklevel = MinTaskLevel(avl_root2);
     /* return the (unchanged) node pointer */
     return node;
 }
@@ -154,7 +153,7 @@ AVL_NODE2 * MinTaskLevel(AVL_NODE2* node)
 }
 
 
-AVL_NODE2* Delblocktask(AVL_NODE2* root,  CPU_INT08U preemption_threshold)
+AVL_NODE2* Delblocktask(AVL_NODE2* root,  OS_TASK_DEADLINE preemption_threshold)
 {
     // STEP 1: PERFORM STANDARD BST DELETE
     OS_ERR err;
@@ -180,11 +179,9 @@ AVL_NODE2* Delblocktask(AVL_NODE2* root,  CPU_INT08U preemption_threshold)
                 temp = root;
                 root = NULL;
             }
-            else 
-            {// One child case
+            else // One child case
                 *root = *temp; // Copy the contents of// the non-empty child
-                 OSMemPut((OS_MEM*)&MemoryCB_avl2, (void*)temp,(OS_ERR*)&err);
-            }
+            OSMemPut((OS_MEM*)&MemoryCB_avl2, (void*)temp,(OS_ERR*)&err);
         }
         else
         {
@@ -235,6 +232,6 @@ AVL_NODE2* Delblocktask(AVL_NODE2* root,  CPU_INT08U preemption_threshold)
         root->right = rightRotate2(root->right);
         return leftRotate2(root);
     }
-    mintasklevel = MinTaskLevel(avl_root2);
+    //mintasklevel = MinTaskLevel(avl_root2);
     return root;
 }

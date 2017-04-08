@@ -31,6 +31,7 @@
 */
 
 #include <os.h>
+OS_TASK_DEADLINE system_ceiling;
 
 #ifdef VSC_INCLUDE_SOURCE_FILE_NAMES
 const  CPU_CHAR  *os_mutex__c = "$Id: $";
@@ -65,6 +66,7 @@ const  CPU_CHAR  *os_mutex__c = "$Id: $";
 
 void  OSMutexCreate (OS_MUTEX    *p_mutex,
                      CPU_CHAR    *p_name,
+                     OS_TASK_DEADLINE resceil,
                      OS_ERR      *p_err)
 {
     CPU_SR_ALLOC();
@@ -106,8 +108,9 @@ void  OSMutexCreate (OS_MUTEX    *p_mutex,
     p_mutex->OwnerNestingCtr   = (OS_NESTING_CTR)0;         /* Mutex is available                                     */
     p_mutex->TS                = (CPU_TS        )0;
     p_mutex->OwnerOriginalPrio =  OS_CFG_PRIO_MAX;
-    OS_PendListInit(&p_mutex->PendList);                    /* Initialize the waiting list                            */
-
+    p_mutex->ResCeil           =  resceil;
+    OS_PendListInit(&p_mutex->PendList);                    /* Initialize the waiting list                            */   
+    
 #if OS_CFG_DBG_EN > 0u
     OS_MutexDbgListAdd(p_mutex);
 #endif
@@ -388,6 +391,14 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
            *p_ts                   = p_mutex->TS;
         }
         CPU_CRITICAL_EXIT();
+        
+        /**********SRP IMPLEMENTATION********/
+        avl_root = InsertMutex(avl_root, p_mutex, p_mutex->ResCeil); //insert resouce cieling here
+        maxresceil = MaxResCeil(avl_root);
+        if(maxresceil != 0)
+          system_ceiling  =  maxresceil->resource_ceiling;   /*insert the mutext along with the RC of that mutext into the AVL  Tree*/
+        /**********SRP IMPLEMENTATION********/
+        
         *p_err                     =  OS_ERR_NONE;
         return;
     }
@@ -413,7 +424,7 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
             return;
         }
     }
-
+#if PIP_DISABLE
     OS_CRITICAL_ENTER_CPU_CRITICAL_EXIT();                  /* Lock the scheduler/re-enable interrupts                */
     p_tcb = p_mutex->OwnerTCBPtr;                           /* Point to the TCB of the Mutex owner                    */
     if (p_tcb->Prio > OSTCBCurPtr->Prio) {                  /* See if mutex owner has a lower priority than current   */
@@ -490,6 +501,7 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
              break;
     }
     CPU_CRITICAL_EXIT();
+#endif
 }
 
 /*$PAGE*/
@@ -688,7 +700,7 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
         *p_err = OS_ERR_MUTEX_NESTING;
         return;
     }
-
+#if PIP_DISABLE
     p_pend_list = &p_mutex->PendList;
     if (p_pend_list->NbrEntries == (OS_OBJ_QTY)0) {         /* Any task waiting on mutex?                             */
         p_mutex->OwnerTCBPtr     = (OS_TCB       *)0;       /* No                                                     */
@@ -716,9 +728,36 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
             (void        *)0,
             (OS_MSG_SIZE  )0,
             (CPU_TS       )ts);
-
+#endif
+    
+    /**********SRP IMPLEMENTATION********/
+    avl_root = DeleteMutex(avl_root, p_mutex->ResCeil); //delete resouce ceiling or reduce the mutex count
+    if(avl_root != 0)   {
+      maxresceil = MaxResCeil(avl_root);
+      if(maxresceil != 0) {
+        system_ceiling  =  maxresceil->resource_ceiling;
+      }
+      else
+        system_ceiling  = MAX_SYSTEM_CEILING;
+    }
+    else
+      system_ceiling  = MAX_SYSTEM_CEILING;
+      
+    //unblock tasks from blocked list
+    if (avl_root2 != 0) {
+      mintasklevel = MinTaskLevel(avl_root2);
+      while(mintasklevel->preemption_threshold < system_ceiling)
+      {
+        heap_node_create(mintasklevel->tcb_pointer,p_mutex->OwnerTCBPtr->TaskAbsDeadline);  
+        avl_root2 = Delblocktask(avl_root2, mintasklevel->preemption_threshold);
+        mintasklevel = MinTaskLevel(avl_root2);
+      }
+    }
+    /**********SRP IMPLEMENTATION********/
+    
     OS_CRITICAL_EXIT_NO_SCHED();
-
+    
+   
     if ((opt & OS_OPT_POST_NO_SCHED) == (OS_OPT)0) {
         OSSched();                                          /* Run the scheduler                                      */
     }
@@ -845,7 +884,7 @@ void  OS_MutexInit (OS_ERR  *p_err)
 #if OS_CFG_DBG_EN > 0u
     OSMutexDbgListPtr = (OS_MUTEX *)0;
 #endif
-
+    system_ceiling  = MAX_SYSTEM_CEILING;
     OSMutexQty        = (OS_OBJ_QTY)0;
     *p_err            =  OS_ERR_NONE;
 }

@@ -19,27 +19,26 @@ OS_MEM MemoryCB_avl;
 void AvlTreeInit(void)
 {
   OS_ERR      err;
-  OS_MEM_QTY node_size = sizeof(CPU_INT32U);
-  OSMemCreate((OS_MEM*)&MemoryCB_avl, (CPU_CHAR*)"avl_tree_node", &MemoryPartition_avl[0][0], (OS_MEM_QTY)(5), (OS_MEM_SIZE)(10*node_size), &err);
+  OSMemCreate((OS_MEM*)&MemoryCB_avl, (CPU_CHAR*)"avl_tree_node", &MemoryPartition_avl[0][0], (OS_MEM_QTY)(5), (OS_MEM_SIZE)(10*sizeof(CPU_INT32U)), &err);
   avl_root = NULL;
   maxresceil = NULL;
   
 }
 
-CPU_INT08U height(AVL_NODE *N)
+OS_TASK_DEADLINE height(AVL_NODE *N)
 {
     if (N == NULL)
         return 0;
     return N->height;
 }
 
-CPU_INT08U max(CPU_INT08U a, CPU_INT08U b)
+OS_TASK_DEADLINE max(OS_TASK_DEADLINE a, OS_TASK_DEADLINE b)
 {
     return (a > b)? a : b;
 }
 
 
-AVL_NODE* AVL_newNode( OS_MUTEX* mutex_pointer, CPU_INT08U resource_ceiling)
+AVL_NODE* AVL_newNode( OS_MUTEX* mutex_pointer, OS_TASK_DEADLINE resource_ceiling)
 {
   OS_ERR err;
     AVL_NODE* node = (AVL_NODE*) OSMemGet((OS_MEM*)&MemoryCB_avl, (OS_ERR*)&err);;
@@ -48,6 +47,7 @@ AVL_NODE* AVL_newNode( OS_MUTEX* mutex_pointer, CPU_INT08U resource_ceiling)
     node->left   = NULL;
     node->right  = NULL;
     node->height = 1;  // new node is initially added at leaf
+    node->entries = 1;
     return(node);
 }
 
@@ -95,17 +95,21 @@ CPU_INT08S getBalance(AVL_NODE *N)
     return height(N->left) - height(N->right);
 }
 
-AVL_NODE* InsertMutex(AVL_NODE* node,  OS_MUTEX* mutex_pointer, CPU_INT08U resource_ceiling)
+AVL_NODE* InsertMutex(AVL_NODE* node,  OS_MUTEX* mutex_pointer, OS_TASK_DEADLINE resource_ceiling)
 {
     
     if (node == NULL)
         return(AVL_newNode(mutex_pointer, resource_ceiling));
     
-    if (resource_ceiling <= node->resource_ceiling)
+    if (resource_ceiling < node->resource_ceiling)
         node->left  = InsertMutex(node->left, mutex_pointer, resource_ceiling);
-    else
+    else if(resource_ceiling > node->resource_ceiling)
         node->right = InsertMutex(node->right, mutex_pointer, resource_ceiling);
-    
+    else {
+      node->entries++;
+      // Equal keys not allowed
+      return node;
+    }
     
     /* 2. Update height of this ancestor node */
     node->height = 1 + max(height(node->left),
@@ -139,7 +143,7 @@ AVL_NODE* InsertMutex(AVL_NODE* node,  OS_MUTEX* mutex_pointer, CPU_INT08U resou
         node->right = rightRotate(node->right);
         return leftRotate(node);
     }
-    maxresceil = MaxResCeil(avl_root);
+    //maxresceil = MaxResCeil(avl_root);
     /* return the (unchanged) node pointer */
     return node;
 }
@@ -148,26 +152,27 @@ AVL_NODE* InsertMutex(AVL_NODE* node,  OS_MUTEX* mutex_pointer, CPU_INT08U resou
 AVL_NODE * MaxResCeil(AVL_NODE* node)
 {
     AVL_NODE* current = node;
-    while (current->left != NULL)
+    while (current->left != 0)
         current = current->left;
     
     return current;
 }
 
 
-AVL_NODE* DeleteMutex(AVL_NODE* root,  CPU_INT08U resource_ceiling)
+AVL_NODE* DeleteMutex(AVL_NODE* root,  OS_TASK_DEADLINE resource_ceiling)
 {
     // STEP 1: PERFORM STANDARD BST DELETE
     OS_ERR err;
     if (root == NULL)
         return root;
     
-    if ( resource_ceiling <= root->resource_ceiling )
+    if ( resource_ceiling < root->resource_ceiling )
         root->left = DeleteMutex(root->left, resource_ceiling);
     
     else if( resource_ceiling > root->resource_ceiling )
         root->right = DeleteMutex(root->right, resource_ceiling);
-    
+    else if ((resource_ceiling == root->resource_ceiling) && (root->entries > 1))
+        root->entries--;
     else
     {
         // node with only one child or no child
@@ -181,11 +186,9 @@ AVL_NODE* DeleteMutex(AVL_NODE* root,  CPU_INT08U resource_ceiling)
                 temp = root;
                 root = NULL;
             }
-            else 
-            {// One child case
-                *root = *temp; // Copy the contents of// the non-empty child
-                 OSMemPut((OS_MEM*)&MemoryCB_avl, (void*)temp,(OS_ERR*)&err);
-            }
+            else // One child case
+              *root = *temp; // Copy the contents of// the non-empty child
+            OSMemPut((OS_MEM*)&MemoryCB_avl, (void*)temp,(OS_ERR*)&err);
         }
         else
         {
@@ -236,6 +239,6 @@ AVL_NODE* DeleteMutex(AVL_NODE* root,  CPU_INT08U resource_ceiling)
         root->right = rightRotate(root->right);
         return leftRotate(root);
     }
-    maxresceil = MaxResCeil(avl_root);
+    //maxresceil = MaxResCeil(avl_root);
     return root;
 }

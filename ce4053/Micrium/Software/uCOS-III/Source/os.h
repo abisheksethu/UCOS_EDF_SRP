@@ -833,6 +833,7 @@ struct  os_mutex {
     OS_PRIO              OwnerOriginalPrio;
     OS_NESTING_CTR       OwnerNestingCtr;                   /* Mutex is available when the counter is 0               */
     CPU_TS               TS;
+    OS_TASK_DEADLINE     ResCeil;
 };
 
 /*$PAGE*/
@@ -988,6 +989,7 @@ struct os_tcb {
    OS_TASK_RELEASE_TIME   TaskRelPeriod;
    OS_TASK_DEADLINE       TaskDeadline;
    OS_TASK_DEADLINE       TaskAbsDeadline;
+   OS_TASK_DEADLINE       TaskPremptionLevel;
 #endif
 };
 
@@ -1398,6 +1400,7 @@ void          OS_MemInit                (OS_ERR                *p_err);
 
 void          OSMutexCreate             (OS_MUTEX              *p_mutex,
                                          CPU_CHAR              *p_name,
+                                         OS_TASK_DEADLINE       resceil,
                                          OS_ERR                *p_err);
 
 #if OS_CFG_MUTEX_DEL_EN > 0u
@@ -2415,29 +2418,34 @@ NODE* find_min();
 NODE* extract_min();
 void heap_create();
 void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
+/********************************* PHASE 2 IMPLEMENTATION ***********************/
+
+#define PIP_DISABLE            0u
+#define MAX_SYSTEM_CEILING     100u       // To allow all the tasks
 
 /******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
 struct AVL_Node
 {
     OS_MUTEX* mutex_pointer;
-    CPU_INT08U resource_ceiling;
+    OS_TASK_DEADLINE resource_ceiling;
     struct AVL_Node *left;
     struct AVL_Node *right;
     int height;
+    int entries;
 };
 
 typedef struct AVL_Node AVL_NODE;
 
-AVL_NODE* InsertMutex(AVL_NODE*,  OS_MUTEX*, CPU_INT08U);
+AVL_NODE* InsertMutex(AVL_NODE*,  OS_MUTEX*, OS_TASK_DEADLINE);
 AVL_NODE* MaxResCeil(AVL_NODE*);
-AVL_NODE* DeleteMutex(AVL_NODE*, CPU_INT08U);
+AVL_NODE* DeleteMutex(AVL_NODE*, OS_TASK_DEADLINE);
 void AvlTreeInit(void);
 
 /******************************************************************* AVL TREE FOR BLOCKED TASKS****************************************/
 struct AVL_Node2
 {
     OS_TCB* tcb_pointer;
-    CPU_INT08U preemption_threshold;
+    OS_TASK_DEADLINE preemption_threshold;
     struct AVL_Node2 *left;
     struct AVL_Node2 *right;
     int height2;
@@ -2445,9 +2453,9 @@ struct AVL_Node2
 
 typedef struct AVL_Node2 AVL_NODE2;
 
-AVL_NODE2* InsertBlkTask(AVL_NODE2*,  OS_TCB*, CPU_INT08U);
+AVL_NODE2* InsertBlkTask(AVL_NODE2*,  OS_TCB*, OS_TASK_DEADLINE);
 AVL_NODE2* MinTaskLevel(AVL_NODE2*);
-AVL_NODE2* Delblocktask(AVL_NODE2*, CPU_INT08U);
+AVL_NODE2* Delblocktask(AVL_NODE2*, OS_TASK_DEADLINE);
 void Tree234Init(void);
 
 extern AVL_NODE* maxresceil;

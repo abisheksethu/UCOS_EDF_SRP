@@ -26,10 +26,6 @@
 #ifndef  __APP_CFG_H__
 #define  __APP_CFG_H__
 
-#define  R1Ceil                                         25u
-#define  R2Ceil                                         11u
-#define  R3Ceil                                         11u
-
 /*
 *********************************************************************************************************
 *                                            BSP CONFIGURATION
