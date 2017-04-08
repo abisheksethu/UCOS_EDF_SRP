@@ -746,17 +746,19 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
     //unblock tasks from blocked list
     if (avl_root2 != 0) {
       mintasklevel = MinTaskLevel(avl_root2);
-      while(mintasklevel->preemption_threshold < system_ceiling)
+      while((mintasklevel->preemption_threshold < system_ceiling) && (mintasklevel != 0))
       {
-        heap_node_create(mintasklevel->tcb_pointer,p_mutex->OwnerTCBPtr->TaskAbsDeadline);  
+        heap_node_create(mintasklevel->tcb_pointer,mintasklevel->tcb_pointer->TaskAbsDeadline);  
         avl_root2 = Delblocktask(avl_root2, mintasklevel->preemption_threshold);
-        mintasklevel = MinTaskLevel(avl_root2);
+        if (avl_root2 != 0)
+          mintasklevel = MinTaskLevel(avl_root2);
+        else 
+          mintasklevel = 0;
       }
     }
     /**********SRP IMPLEMENTATION********/
     
     OS_CRITICAL_EXIT_NO_SCHED();
-    
    
     if ((opt & OS_OPT_POST_NO_SCHED) == (OS_OPT)0) {
         OSSched();                                          /* Run the scheduler                                      */

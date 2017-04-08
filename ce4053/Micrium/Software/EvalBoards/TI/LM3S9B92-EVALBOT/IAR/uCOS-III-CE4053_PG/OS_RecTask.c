@@ -166,7 +166,7 @@ void  OSTaskHandlerUpdate ()
         /* --------------- RESET TCB STACK -------*/
         OSTCBStackReset(min->p_tcb[i]);
         /* --------------- ADD TASK TO SCHEDULING HEAP -------*/
-        abs_deadline = min->p_tcb[i]->TaskAbsDeadline + (min->p_tcb[i]->TaskDeadline);
+        abs_deadline = counter + (min->p_tcb[i]->TaskDeadline);
         min->p_tcb[i]->TaskAbsDeadline = abs_deadline;
         if (min->p_tcb[i]->TaskPremptionLevel < system_ceiling)
           heap_node_create(min->p_tcb[i],min->p_tcb[i]->TaskAbsDeadline);
@@ -477,7 +477,7 @@ void  OSRecTaskCreate     (OS_TCB        *p_tcb,
     p_tcb->TimeQuanta    = time_quanta;                     /* Save the #ticks for time slice (0 means not sliced)    */
     p_tcb->TaskPeriod    = p_task_period;                   /* Save Release time */
     p_tcb->TaskRelPeriod = 0;                               /* Initial release time to be assumed as zero */        
-    p_tcb->TaskDeadline  = 0;                               /* Save Deadline for Job1*/
+    p_tcb->TaskDeadline  = p_task_deadline;                               /* Save Deadline for Job1*/
     p_tcb->TaskAbsDeadline = p_task_deadline;               /* Save Absolute Deadline */   
     p_tcb->TaskPremptionLevel = p_task_deadline;            /* Save Task Premption level*/    
     

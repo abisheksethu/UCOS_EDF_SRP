@@ -99,7 +99,7 @@ AVL_NODE2* InsertBlkTask(AVL_NODE2* node,  OS_TCB* tcb_pointer, OS_TASK_DEADLINE
     if (node == NULL)
         return(AVL_newNode2(tcb_pointer, preemption_threshold));
     
-    if (preemption_threshold <= node->preemption_threshold)
+    if (preemption_threshold < node->preemption_threshold)
         node->left  = InsertBlkTask(node->left, tcb_pointer, preemption_threshold);
     else
         node->right = InsertBlkTask(node->right, tcb_pointer, preemption_threshold);
@@ -160,7 +160,7 @@ AVL_NODE2* Delblocktask(AVL_NODE2* root,  OS_TASK_DEADLINE preemption_threshold)
     if (root == NULL)
         return root;
     
-    if ( preemption_threshold <= root->preemption_threshold )
+    if ( preemption_threshold < root->preemption_threshold )
         root->left = Delblocktask(root->left, preemption_threshold);
     
     else if( preemption_threshold > root->preemption_threshold )
