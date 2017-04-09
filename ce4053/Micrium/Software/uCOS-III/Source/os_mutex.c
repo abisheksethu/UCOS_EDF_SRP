@@ -391,14 +391,14 @@ void  OSMutexPend (OS_MUTEX   *p_mutex,
            *p_ts                   = p_mutex->TS;
         }
         CPU_CRITICAL_EXIT();
-        
+#if SRP        
         /**********SRP IMPLEMENTATION********/
         avl_root = InsertMutex(avl_root, p_mutex, p_mutex->ResCeil); //insert resouce cieling here
         maxresceil = MaxResCeil(avl_root);
         if(maxresceil != 0)
           system_ceiling  =  maxresceil->resource_ceiling;   /*insert the mutext along with the RC of that mutext into the AVL  Tree*/
         /**********SRP IMPLEMENTATION********/
-        
+#endif
         *p_err                     =  OS_ERR_NONE;
         return;
     }
@@ -729,7 +729,7 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
             (OS_MSG_SIZE  )0,
             (CPU_TS       )ts);
 #endif
-    
+#if SRP
     /**********SRP IMPLEMENTATION********/
     avl_root = DeleteMutex(avl_root, p_mutex->ResCeil); //delete resouce ceiling or reduce the mutex count
     if(avl_root != 0)   {
@@ -742,13 +742,17 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
     }
     else
       system_ceiling  = MAX_SYSTEM_CEILING;
-      
+    
     //unblock tasks from blocked list
+    int iter;  
     if (avl_root2 != 0) {
       mintasklevel = MinTaskLevel(avl_root2);
       while((mintasklevel->preemption_threshold < system_ceiling) && (mintasklevel != 0))
-      {
-        heap_node_create(mintasklevel->tcb_pointer,mintasklevel->tcb_pointer->TaskAbsDeadline);  
+      { 
+        int count = mintasklevel->entries;
+        for (iter = 0; iter < count; iter++) {
+          heap_node_create((mintasklevel->tcb_pointer[iter]),(mintasklevel->tcb_pointer[iter]->TaskAbsDeadline));
+        }
         avl_root2 = Delblocktask(avl_root2, mintasklevel->preemption_threshold);
         if (avl_root2 != 0)
           mintasklevel = MinTaskLevel(avl_root2);
@@ -757,7 +761,7 @@ void  OSMutexPost (OS_MUTEX  *p_mutex,
       }
     }
     /**********SRP IMPLEMENTATION********/
-    
+#endif
     OS_CRITICAL_EXIT_NO_SCHED();
    
     if ((opt & OS_OPT_POST_NO_SCHED) == (OS_OPT)0) {

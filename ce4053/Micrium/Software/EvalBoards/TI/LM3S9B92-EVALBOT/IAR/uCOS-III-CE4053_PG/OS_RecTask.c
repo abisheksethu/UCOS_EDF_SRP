@@ -177,7 +177,7 @@ void  OSTaskHandlerUpdate ()
         min->p_tcb[i]->TaskRelPeriod = rel_time;
         /* --------------- ADD TASK TO RECURSION LIST WITH THE UPDATED RELEASE AND DEADLINE PERIOD-------*/
         RecursionTree = InsertRecTree(rel_time, RecursionTree, min->p_tcb[i]);   
-      }
+      } 
       else
       {
         /* Update the local counter and boundary check */
@@ -189,6 +189,7 @@ void  OSTaskHandlerUpdate ()
     RecursionTree = DelRecTree(min->release_time, RecursionTree);
     ReleaseOverhead = ((OS_TS_GET() - StartTime2)- (StartTime2 - StartTime));
     OSSched();
+    
   }
   /* Update the local counter and boundary check */
   counter =(counter+1);

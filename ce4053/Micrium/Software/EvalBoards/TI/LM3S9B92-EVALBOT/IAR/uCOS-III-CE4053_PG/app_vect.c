@@ -182,13 +182,13 @@ __root  const  APP_INTVECT_ELEM  __vector_table[] @ ".intvec" = {
 static void App_TaskLoader  (void)
 {       
   OS_ERR  err;
-  AStartTime = OS_TS_GET();
-  AStartTime2 = OS_TS_GET(); 
+  //AStartTime = OS_TS_GET();
+  //AStartTime2 = OS_TS_GET(); 
   TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);        
   (void)OSTaskSemPost((OS_TCB *)&OSTaskHandlerTCB,            /* Signal OSTaskHandler   */
                       (OS_OPT  ) OS_OPT_POST_NONE,
                       (OS_ERR *)&err);
-  TickISROverhead = ((OS_TS_GET() - AStartTime2)- (AStartTime2 - AStartTime));
+  //TickISROverhead = ((OS_TS_GET() - AStartTime2)- (AStartTime2 - AStartTime));
 }
 
 /*
