@@ -26,13 +26,6 @@
 #ifndef  __APP_CFG_H__
 #define  __APP_CFG_H__
 
-<<<<<<< .merge_file_a02052
-#define  R1Ceil                                         0u  //not used by any task
-#define  R2Ceil                                         1u  //used by task2 and task3
-#define  R3Ceil                                         1u
-
-=======
->>>>>>> .merge_file_a03928
 /*
 *********************************************************************************************************
 *                                            BSP CONFIGURATION
@@ -50,23 +43,13 @@
 */
 
 #define  APP_TASK_START_PRIO                        	1u
-<<<<<<< .merge_file_a02052
-=======
 
 #define  APP_TASK_ONE_PRIO                              11u
 #define  APP_TASK_TWO_PRIO                              12u
 #define  APP_TASK_THREE_PRIO                            13u
 
->>>>>>> .merge_file_a03928
 
-#define  APP_TASK_ONE_PRIO                              11u
-#define  APP_TASK_TWO_PRIO                              12u
-#define  APP_TASK_THREE_PRIO                            13u
-#define  APP_TASK_START_PRIO                        	5u
 
-#define PREEMPTION_LEVEL_TASK1        1u         //highest preemption level
-#define PREEMPTION_LEVEL_TASK2        1u         //same preemption level as of task 1 because of same deadline
-#define PREEMPTION_LEVEL_TASK3        2u         //lower preemption level
 /*
 *********************************************************************************************************
 *                                            TASK STACK SIZES
@@ -78,20 +61,6 @@
 #define  APP_TASK_ONE_STK_SIZE                      128u
 #define  APP_TASK_TWO_STK_SIZE                      128u
 #define  APP_TASK_THREE_STK_SIZE                    128u
-<<<<<<< .merge_file_a02052
-
-
-/*
-*********************************************************************************************************
-*                                             LOCAL DEFINES
-*********************************************************************************************************
-*/
-
-#define TASK1PERIOD                    5u
-#define TASK2PERIOD                    5u
-#define TASK3PERIOD                   10u
-=======
->>>>>>> .merge_file_a03928
 
 /*
 *********************************************************************************************************

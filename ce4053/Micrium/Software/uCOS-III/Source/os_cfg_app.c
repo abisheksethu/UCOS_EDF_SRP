@@ -43,6 +43,7 @@ const  CPU_CHAR  *os_cfg_app__c = "$Id: $";
 #define  OS_CFG_INT_Q_TASK_STK_LIMIT     ((OS_CFG_INT_Q_TASK_STK_SIZE * OS_CFG_TASK_STK_LIMIT_PCT_EMPTY) / 100u)
 #define  OS_CFG_STAT_TASK_STK_LIMIT      ((OS_CFG_STAT_TASK_STK_SIZE  * OS_CFG_TASK_STK_LIMIT_PCT_EMPTY) / 100u)
 #define  OS_CFG_TICK_TASK_STK_LIMIT      ((OS_CFG_TICK_TASK_STK_SIZE  * OS_CFG_TASK_STK_LIMIT_PCT_EMPTY) / 100u)
+#define  OS_CFG_TASK_HANDLER_STK_LIMIT   ((OS_CFG_TASK_HANDLER_STK_SIZE  * OS_CFG_TASK_STK_LIMIT_PCT_EMPTY) / 100u)
 #define  OS_CFG_TMR_TASK_STK_LIMIT       ((OS_CFG_TMR_TASK_STK_SIZE   * OS_CFG_TASK_STK_LIMIT_PCT_EMPTY) / 100u)
 
 /*
@@ -71,6 +72,7 @@ CPU_STK        OSCfg_StatTaskStk   [OS_CFG_STAT_TASK_STK_SIZE];
 #endif
 
 CPU_STK        OSCfg_TickTaskStk   [OS_CFG_TICK_TASK_STK_SIZE];
+CPU_STK        OSCfg_TaskHandlerStk[OS_CFG_TASK_HANDLER_STK_SIZE];
 OS_TICK_SPOKE  OSCfg_TickWheel     [OS_CFG_TICK_WHEEL_SIZE];
 
 #if (OS_CFG_TMR_EN > 0u)
@@ -161,6 +163,10 @@ CPU_INT32U     const  OSCfg_TickTaskStkSizeRAM   = (CPU_INT32U  )sizeof(OSCfg_Ti
 OS_OBJ_QTY     const  OSCfg_TickWheelSize        = (OS_OBJ_QTY  )OS_CFG_TICK_WHEEL_SIZE;
 CPU_INT32U     const  OSCfg_TickWheelSizeRAM     = (CPU_INT32U  )sizeof(OSCfg_TickWheel);
 
+OS_PRIO        const  OSCfg_TaskHandlerPrio         = (OS_PRIO     )OS_CFG_TASK_HANDLER_PRIO;
+CPU_STK      * const  OSCfg_TaskHandlerStkBasePtr   = (CPU_STK    *)&OSCfg_TaskHandlerStk[0];
+CPU_STK_SIZE   const  OSCfg_TaskHandlerStkLimit     = (CPU_STK_SIZE)OS_CFG_TASK_HANDLER_STK_LIMIT;
+CPU_STK_SIZE   const  OSCfg_TaskHandlerStkSize      = (CPU_STK_SIZE)OS_CFG_TASK_HANDLER_STK_SIZE;
 
 #if (OS_CFG_TMR_EN > 0u)
 OS_PRIO        const  OSCfg_TmrTaskPrio          = (OS_PRIO     )OS_CFG_TMR_TASK_PRIO;

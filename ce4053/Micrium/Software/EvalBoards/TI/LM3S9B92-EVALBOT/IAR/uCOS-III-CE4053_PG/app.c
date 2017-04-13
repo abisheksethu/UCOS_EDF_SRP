@@ -44,20 +44,20 @@
 
 #define ONESECONDTICK             7000000
 
-#define TASK1PERIOD                   5
-#define TASK2PERIOD                   5
-#define TASK3PERIOD                   10
+#define TASK1PERIOD                   10
+#define TASK2PERIOD                   13
+#define TASK3PERIOD                   20
 
-#define TASK1DEADLINE                   5
-#define TASK2DEADLINE                   5
-#define TASK3DEADLINE                   10
+#define TASK1DEADLINE                   TASK1PERIOD
+#define TASK2DEADLINE                   TASK2PERIOD
+#define TASK3DEADLINE                   TASK3PERIOD
 
 #define  R1Ceil                         MAX_SYSTEM_CEILING
 #define  R2Ceil                         TASK1DEADLINE
-#define  R3Ceil                         TASK1DEADLINE
+#define  R3Ceil                         TASK2DEADLINE
 
 #define WORKLOAD1                    2
-#define WORKLOAD2                    2
+#define WORKLOAD2                    4
 #define WORKLOAD3                    1
 
 #define TIMERDIV                      (BSP_CPUClkFreq() / (CPU_INT32U)OSCfg_TickRate_Hz)
@@ -244,7 +244,7 @@ static  void  AppTaskOne (void  *p_arg)
     OSQPend(&DummyQ, TASK1PERIOD * 200, OS_OPT_PEND_BLOCKING, &msg_size, &ts, &err);
      
     OSMutexPend((OS_MUTEX *)&MutexTwo, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
-    OSMutexPend((OS_MUTEX *)&MutexThree, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
+    //OSMutexPend((OS_MUTEX *)&MutexThree, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
      if(iMove > 0)
     {
       RoboTurn(FRONT, 14, 50);
@@ -262,7 +262,7 @@ static  void  AppTaskOne (void  *p_arg)
     BSP_MotorStop(RIGHT_SIDE);
 
     OSMutexPost((OS_MUTEX *)&MutexTwo, (OS_OPT )OS_OPT_POST_NONE, (OS_ERR *)&err);
-    OSMutexPost((OS_MUTEX *)&MutexThree, (OS_OPT )OS_OPT_POST_NONE, (OS_ERR *)&err);
+    //OSMutexPost((OS_MUTEX *)&MutexThree, (OS_OPT )OS_OPT_POST_NONE, (OS_ERR *)&err);
         
     //printf("\nT1");
     OSRecTaskDel((OS_TCB *)&AppTaskOneTCB, &err); 
@@ -281,7 +281,7 @@ static  void  AppTaskTwo (void  *p_arg)
       j = ((i * 2) + j);
     }
     BSP_LED_Off(1u);
-    
+    iMove++;
     
     OSMutexPend((OS_MUTEX *)&MutexTwo, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
 
@@ -309,16 +309,19 @@ static  void  AppTaskThree (void  *p_arg)
     
     BSP_LED_On(2u);
 
+    OSMutexPend((OS_MUTEX *)&MutexThree, (OS_TICK )0, (OS_OPT )OS_OPT_PEND_BLOCKING, (CPU_TS *)&ts, (OS_ERR *)&err);
+    
     for(k=0; k<iSec; k++)
     {
       //BSP_LED_Toggle(2u);
       for(i=0; i <ONESECONDTICK; i++)
          j = ((i * 2) + j);
     }
+    OSMutexPost((OS_MUTEX *)&MutexThree, (OS_OPT )OS_OPT_POST_NONE, (OS_ERR *)&err);
     BSP_LED_Off(2u);
-  //  BSP_DisplayClear();
+    //BSP_DisplayClear();
     
-   OSRecTaskDel((OS_TCB *)&AppTaskThreeTCB, &err);
+    OSRecTaskDel((OS_TCB *)&AppTaskThreeTCB, &err);
 }
 
 

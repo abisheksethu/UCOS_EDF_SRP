@@ -8,12 +8,40 @@ UseTrigger=1
 TriggerName=main
 LimitSize=0
 ByteLimit=50
+[LMIFTDIDriver]
+LMI_ResetMode=0x00000000
+[Exceptions]
+StopOnUncaught=_ 0
+StopOnThrow=_ 0
+[DebugChecksum]
+Checksum=816169594
+[CallStack]
+ShowArgs=0
+[Disassembly]
+MixedMode=1
+[struct_types]
+Fmt0=OS_TCB-PendStatus	3	0
+Fmt1=OS_TCB-Prio	3	0
 [Disassemble mode]
 mode=0
 [Breakpoints]
 Count=0
-[LMIFTDIDriver]
-LMI_ResetMode=0x00000000
+[Log file]
+LoggingEnabled=_ 0
+LogFile=_ ""
+Category=_ 0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""
 [Aliases]
-Count=0
-SuppressDialog=0
+A0=_ "C:\Users\VijayaKumar\Desktop\Testing - Copy\test\cpe484_es6153\Micrium\Software\CPU\LuminaryMicro\DriverLib\driverlib\gpio.c" "C:\Users\test\Desktop\OS\Project\workspace\ucos_EDF+SRP\ce4053\Micrium\Software\CPU\LuminaryMicro\DriverLib\driverlib\gpio.c"
+Count=1
+SuppressDialog=1
+[CallStackLog]
+Enabled=0
+[DriverProfiling]
+Enabled=0
+Mode=0
+Graph=0
+Symbiont=0
+Exclusions=

@@ -378,13 +378,9 @@ void  OSSched (void)
   /* Find the highest priority ready from ready list*/
   OSPrioHighRdy   = OS_PrioGetHighest();  
   
-<<<<<<< .merge_file_a01976
-  if (OSPrioHighRdy > 3) 
-=======
   if (OSPrioHighRdy > 6) 
->>>>>>> .merge_file_a05520
   { 
-    /* Find the highest priority ready from Binomial Heap*/
+    /* Find the highest priority ready from Scheduler tree*/
     OS_TCB* task_to_run = OSEDFSched();
     if(task_to_run == 0)
     {
