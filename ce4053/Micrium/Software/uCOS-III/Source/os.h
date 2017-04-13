@@ -2438,6 +2438,7 @@ void heap_node_create(OS_TCB*, OS_TASK_DEADLINE);
 /********************************* PHASE 2 IMPLEMENTATION ***********************/
 
 #define PIP_DISABLE            0u
+#define SRP                    1u
 #define MAX_SYSTEM_CEILING     100u       // To allow all the tasks
 
 /******************************************************************* AVL TREE FOR MUTEXES AND SYSTEM CEILING****************************************/
@@ -2461,11 +2462,12 @@ void AvlTreeInit(void);
 /******************************************************************* AVL TREE FOR BLOCKED TASKS****************************************/
 struct AVL_Node2
 {
-    OS_TCB* tcb_pointer;
+    OS_TCB* tcb_pointer[NUM_OF_TASKS];
     OS_TASK_DEADLINE preemption_threshold;
     struct AVL_Node2 *left;
     struct AVL_Node2 *right;
     int height2;
+    int entries;
 };
 
 typedef struct AVL_Node2 AVL_NODE2;

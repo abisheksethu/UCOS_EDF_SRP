@@ -42,10 +42,12 @@ AVL_NODE2* AVL_newNode2( OS_TCB* tcb_pointer, OS_TASK_DEADLINE preemption_thresh
   OS_ERR err;
     AVL_NODE2* node = (AVL_NODE2*) OSMemGet((OS_MEM*)&MemoryCB_avl2, (OS_ERR*)&err);;
     node->preemption_threshold   = preemption_threshold;
-	node->tcb_pointer = tcb_pointer;
+    node->entries = 0;
+    node->tcb_pointer[node->entries] = tcb_pointer;
     node->left   = NULL;
     node->right  = NULL;
     node->height2 = 1;  // new node is initially added at leaf
+    node->entries = node->entries + 1;
     return(node);
 }
 
@@ -99,7 +101,12 @@ AVL_NODE2* InsertBlkTask(AVL_NODE2* node,  OS_TCB* tcb_pointer, OS_TASK_DEADLINE
     if (node == NULL)
         return(AVL_newNode2(tcb_pointer, preemption_threshold));
     
-    if (preemption_threshold < node->preemption_threshold)
+    if (preemption_threshold == node->preemption_threshold) {
+        node->tcb_pointer[node->entries] = tcb_pointer;
+        node->entries = node->entries + 1;
+        return node;
+    } 
+    else if (preemption_threshold < node->preemption_threshold)
         node->left  = InsertBlkTask(node->left, tcb_pointer, preemption_threshold);
     else
         node->right = InsertBlkTask(node->right, tcb_pointer, preemption_threshold);

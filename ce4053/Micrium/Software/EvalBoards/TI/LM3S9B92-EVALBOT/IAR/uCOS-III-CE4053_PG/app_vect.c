@@ -59,9 +59,7 @@ typedef  union {
 *                                          GLOBAL VARIABLES
 *********************************************************************************************************
 */
-/*OVERHEAD CALCULATION*/
-CPU_TS StartTime;
-CPU_TS StartTime2;
+CPU_TS AStartTime, AStartTime2, TickISROverhead;
 /*
 *********************************************************************************************************
 *                                      LOCAL FUNCTION PROTOTYPES
@@ -182,12 +180,15 @@ __root  const  APP_INTVECT_ELEM  __vector_table[] @ ".intvec" = {
     BSP_IntHandlerGPIOJ
 };
 static void App_TaskLoader  (void)
-{
-    /*Implementation for time lapsed*/
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);    
-    StartTime = OS_TS_GET();
-    StartTime2 = OS_TS_GET(); 
-    OSTaskHandler();
+{       
+  OS_ERR  err;
+  //AStartTime = OS_TS_GET();
+  //AStartTime2 = OS_TS_GET(); 
+  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);        
+  (void)OSTaskSemPost((OS_TCB *)&OSTaskHandlerTCB,            /* Signal OSTaskHandler   */
+                      (OS_OPT  ) OS_OPT_POST_NONE,
+                      (OS_ERR *)&err);
+  //TickISROverhead = ((OS_TS_GET() - AStartTime2)- (AStartTime2 - AStartTime));
 }
 
 /*
